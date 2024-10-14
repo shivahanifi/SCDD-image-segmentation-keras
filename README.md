@@ -7,8 +7,7 @@
 [![Twitter](https://img.shields.io/twitter/url.svg?label=Follow%20%40divamgupta&style=social&url=https%3A%2F%2Ftwitter.com%2Fdivamgupta)](https://twitter.com/divamgupta)
 
 # Run the code my way
-## Build the docker
-Use the modified Dockerfile to build the docker
+
 ## Making graphical interface available
 To have the graphical interface available and capable of displaying all the images from the dataset and the predictions first run:
 ```
