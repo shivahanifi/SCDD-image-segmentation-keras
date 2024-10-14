@@ -6,9 +6,60 @@
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](http://perso.crans.org/besson/LICENSE.html)
 [![Twitter](https://img.shields.io/twitter/url.svg?label=Follow%20%40divamgupta&style=social&url=https%3A%2F%2Ftwitter.com%2Fdivamgupta)](https://twitter.com/divamgupta)
 
+# Run the code my way
+## Build the docker
+Use the modified Dockerfile to build the docker
+## Making graphical interface available
+To have the graphical interface available and capable of displaying all the images from the dataset and the predictions first run:
+```
+xhost +local:docker
+```
+## Running the docker
+After building the docker run the docker with the following command to have a shared folder with the host and also the graphical interface available.
 
+```
+sudo docker run -v /home/shiva/Documents/code/image-segmentation-keras/share:/image-segmentation-keras/share -e DISPLAY=$DISPLAY -v /tmp/.X11-unix/:/tmp/.X11-unix --env QT_X11_NO_MITSHM=1 -it isk
 
-Implementation of various Deep Image Segmentation models in keras.
+```
+
+## Downloading the test set
+To run initial tests and understand the code, download and unzip the provided dataset into the shared folder to have access to it both from the local host and the docker.
+
+```
+gdown https://drive.google.com/uc?id=0B0d9ZiqAgFkiOHR1NTJhWVJMNEU
+unzip dataset1.zip
+```
+NOTE: Do not forget to commit the docker after downloading the dataset.
+## Checking the dataset
+NOTE: Change the path if you download the dataset in another path.
+### Dataset validation
+```
+python -m keras_segmentation verify_dataset \
+ --images_path="share/dataset1/images_prepped_train/" \
+ --segs_path="share/dataset1/annotations_prepped_train/"  \
+ --n_classes=50
+```
+### Dataset visualization
+
+```
+python -m keras_segmentation visualize_dataset \
+ --images_path="share/dataset1/images_prepped_train/" \
+ --segs_path="share/dataset1/annotations_prepped_train/"  \
+ --n_classes=50
+```
+## SCDD dataset
+For initial tests, a validation images and their corresponding masks from the SCDD dataset are prepared in the shared folder. For validation and visualization use the following commands:
+
+### Validation
+```
+python -m keras_segmentation verify_dataset  --images_path="share/SCDD_20211104/images_val"  --segs_path="share/SCDD_20211104/masks_coded_val"   --n_classes=23
+``` 
+
+### Visualization
+```
+python -m keras_segmentation visualize_dataset  --images_path="share/SCDD_20211104/images_val"  --segs_path="share/SCDD_20211104/masks_coded_val"   --n_classes=23
+```
+# Implementation of various Deep Image Segmentation models in keras.
 
 ### News : Some functionality of this repository has been integrated with https://liner.ai . Check it out!! 
 
