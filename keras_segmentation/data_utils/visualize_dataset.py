@@ -64,7 +64,10 @@ def visualize_segmentation_dataset(images_path, segs_path, n_classes,
             print("Please press any key to display the next image")
             cv2.imshow("img", img)
             cv2.imshow("seg_img", seg_img)
-            cv2.waitKey()
+            key = cv2.waitKey()
+            if key == ord('q'):  # Press 'q' to exit
+                cv2.destroyAllWindows()  # Close all OpenCV windows
+                return False
     except DataLoaderError as e:
         print("Found error during data loading\n{0}".format(str(e)))
         return False
@@ -94,8 +97,10 @@ def visualize_segmentation_dataset_one(images_path, segs_path, n_classes,
     if not no_show:
         cv2.imshow("img", img)
         cv2.imshow("seg_img", seg_img)
-        cv2.waitKey()
-
+        key = cv2.waitKey()
+        if key == ord('q'):  # Press 'q' to exit
+            cv2.destroyAllWindows()  # Close all OpenCV windows
+            return img, seg_img
     return img, seg_img
 
 
