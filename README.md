@@ -221,13 +221,6 @@ cv2.imwrite( "ann_1.png" ,ann_img )
 
 Only use bmp or png format for the annotation images.
 
-## Download the sample prepared dataset
-
-Download and extract the following:
-
-https://drive.google.com/file/d/0B0d9ZiqAgFkiOHR1NTJhWVJMNEU/view?usp=sharing
-
-You will get a folder named dataset1/
 
 
 ## Using the python module
@@ -258,28 +251,6 @@ print(model.evaluate_segmentation( inp_images_dir="dataset1/images_prepped_test/
 
 ```
 
-
-## Usage via command line
-You can also use the tool just using command line
-
-### Visualizing the prepared data
-
-You can also visualize your prepared annotations for verification of the prepared data.
-
-
-```shell
-python -m keras_segmentation verify_dataset \
- --images_path="dataset1/images_prepped_train/" \
- --segs_path="dataset1/annotations_prepped_train/"  \
- --n_classes=50
-```
-
-```shell
-python -m keras_segmentation visualize_dataset \
- --images_path="dataset1/images_prepped_train/" \
- --segs_path="dataset1/annotations_prepped_train/"  \
- --n_classes=50
-```
 
 
 
