@@ -1,4 +1,5 @@
 import wandb
+import os
 import matplotlib.pyplot as plt
 from keras_segmentation.models.unet import vgg_unet
 from keras.callbacks import Callback
@@ -6,6 +7,7 @@ from keras.callbacks import Callback
 
 # tracking with wandb
 wandb.init(
+    name = "metrics log added",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -54,6 +56,8 @@ model.train(
     train_annotations=train_annotations_path,
     checkpoints_path=checkpoint_path,
     epochs=wandb.config.epochs,
+    batch_size = 2,
+    steps_per_epoch=len(os.listdir(train_image_path)) // 2,
     callbacks=[WandbCallback()]  # Add the custom callback here
 )
 
@@ -74,8 +78,10 @@ evaluation_result= model.evaluate_segmentation( inp_images_dir= test_image_path 
 print(evaluation_result)
 
 # Log evaluation results
-if 'iou' in evaluation_result:
-    wandb.log({"iou": evaluation_result['iou']})
+wandb.log({"frequency_weighted_IU": evaluation_result['frequency_weighted_IU'], 
+            "mean_IU": evaluation_result['mean_IU'], 
+            "class_wise_IU": evaluation_result['class_wise_IU'], 
+            })
 
 # Finish the WandB run
 wandb.finish()
