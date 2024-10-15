@@ -17,7 +17,7 @@ xhost +local:docker
 After building the docker run the docker with the following command to have a shared folder with the host and also the graphical interface available.
 
 ```
-sudo docker run -v /home/shiva/Documents/code/SCDD-image-segmentation-keras/share:/SCDD-image-segmentation-keras/share -e DISPLAY=$DISPLAY -v /tmp/.X11-unix/:/tmp/.X11-unix --env QT_X11_NO_MITSHM=1 -it -v ~/.ssh:/root/.ssh scdd_isk
+sudo docker run --name scdd_isk -v /home/shiva/Documents/code/SCDD-image-segmentation-keras/share:/SCDD-image-segmentation-keras/share -e DISPLAY=$DISPLAY -v /tmp/.X11-unix/:/tmp/.X11-unix --env QT_X11_NO_MITSHM=1 -it -v ~/.ssh:/root/.ssh scdd_isk
 ```
 
 ## Downloading the test set
@@ -46,6 +46,7 @@ python -m keras_segmentation visualize_dataset \
  --n_classes=50
 ```
 ## SCDD dataset
+Download the data folders from the [SCDD repository](https://github.com/TheMakiran/BenchmarkELimages).
 For initial tests, a validation images and their corresponding masks from the SCDD dataset are prepared in the shared folder. For validation and visualization use the following commands:
 
 ### Validation
