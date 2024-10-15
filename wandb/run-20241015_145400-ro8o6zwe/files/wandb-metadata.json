@@ -1,0 +1,33 @@
+{
+  "os":  "Linux-6.9.3-76060903-generic-x86_64-with-debian-stretch-sid",
+  "python":  "3.7.7",
+  "startedAt":  "2024-10-15T14:54:00.905455Z",
+  "cuda":  "9.0.176",
+  "program":  "/SCDD-image-segmentation-keras/keras_segmentation/predict_script.py",
+  "codePath":  "keras_segmentation/predict_script.py",
+  "git":  {
+    "remote":  "git@github.com:shivahanifi/SCDD-image-segmentation-keras.git",
+    "commit":  "551599172575daba3c2e6e1b2b6f2b70b9470cfd"
+  },
+  "email":  "shiva.hanifi.001@student.uni.lu",
+  "root":  "/SCDD-image-segmentation-keras",
+  "host":  "a2fe58da73b3",
+  "username":  "root",
+  "executable":  "/miniconda/envs/unet/bin/python",
+  "codePathLocal":  "keras_segmentation/predict_script.py",
+  "cpu_count":  16,
+  "cpu_count_logical":  22,
+  "disk":  {
+    "/":  {
+      "total":  "997445378048",
+      "used":  "577088774144"
+    }
+  },
+  "memory":  {
+    "total":  "33265213440"
+  },
+  "cpu":  {
+    "count":  16,
+    "countLogical":  22
+  }
+}
