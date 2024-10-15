@@ -1,6 +1,7 @@
 data/
 
-
+# shared folder containing dataset
+share/
 
 sync.expect
 
