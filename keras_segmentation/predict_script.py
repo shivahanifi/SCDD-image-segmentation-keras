@@ -1,13 +1,15 @@
 import wandb
 import os
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import numpy as np
 from keras_segmentation.models.unet import vgg_unet
 from keras.callbacks import Callback
 
 
 # tracking with wandb
 wandb.init(
-    name = "metrics log added",
+    name = "prediction convert RGB manual",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -66,8 +68,12 @@ out = model.predict_segmentation(
     inp="/SCDD-image-segmentation-keras/test/example_dataset/images_prepped_test/0016E5_07959.png",
     out_fname="/SCDD-image-segmentation-keras/share/example_out.png"
 )
+
+# Apply color map to make the segmentation mask RGB
+out_rgb = cm.get_cmap('jet')(out)
+
 # Log the prediction
-wandb.log({"predictions": [wandb.Image(out, caption="Predicted Segmentation")]})
+wandb.log({"predictions": [wandb.Image(out_rgb, caption="Predicted Segmentation")]})
 
 
 plt.imshow(out)
