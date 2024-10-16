@@ -68,30 +68,12 @@ out = model.predict_segmentation(
     out_fname="/SCDD-image-segmentation-keras/share/example_out.png"
 )
 
-# Define a color map for your n_classes (mapping class indices to RGB values)
-def get_colormap(n_classes):
-    np.random.seed(0)  # Seed to ensure consistent color mapping across runs
-    colors = np.random.randint(0, 255, size=(n_classes, 3), dtype=np.uint8)  # Random RGB colors for each class
-    return colors
-
-# Convert the segmentation class indices to an RGB image using the colormap
-def apply_colormap(segmentation, colormap):
-    h, w = segmentation.shape
-    rgb_image = np.zeros((h, w, 3), dtype=np.uint8)
-    
-    for class_index, color in enumerate(colormap):
-        rgb_image[segmentation == class_index] = color
-    
-    return rgb_image
-
-colormap = get_colormap(wandb.config.n_classes)
-# Convert class indices (2D array) to RGB image using the colormap
-out_rgb = apply_colormap(out, colormap)
-
-# Log the prediction
-wandb.log({"predictions": [wandb.Image(out_rgb, caption="Predicted Segmentation")]})
 
 plt.imshow(out)
+
+# Log the prediction
+wandb.log({"predictions": [wandb.Image("/SCDD-image-segmentation-keras/share/example_out.png", caption="Predicted Segmentation")]})
+
 
 # evaluating the model 
 evaluation_result= model.evaluate_segmentation( inp_images_dir= test_image_path , annotations_dir= test_annotation_dir)
