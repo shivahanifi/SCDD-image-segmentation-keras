@@ -93,6 +93,10 @@ wandb.log({"predictions": [wandb.Image(out_rgb, caption="Predicted Segmentation"
 
 plt.imshow(out)
 
+# Log the prediction
+wandb.log({"predictions": [wandb.Image("/SCDD-image-segmentation-keras/share/example_out.png", caption="Predicted Segmentation")]})
+
+
 # evaluating the model 
 evaluation_result= model.evaluate_segmentation( inp_images_dir= test_image_path , annotations_dir= test_annotation_dir)
 

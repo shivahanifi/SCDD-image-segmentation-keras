@@ -3,6 +3,9 @@ data/
 # shared folder containing dataset
 share/
 
+# wandb
+/SCDD-image-segmentation-keras/wandb 
+
 sync.expect
 
 
