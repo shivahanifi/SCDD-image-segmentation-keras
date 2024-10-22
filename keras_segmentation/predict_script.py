@@ -8,28 +8,28 @@ from keras.callbacks import Callback
 
 # tracking with wandb
 wandb.init(
-    name = "out array to RGB",
+    name = "SCDD_20211104",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
         "architecture": "vgg_unet",
         "dataset": "example_dataset",
-        "n_classes": 51,
+        "n_classes": 24,
         "input_height": 416,
         "input_width": 608,
         "epochs":5,
     })
 
 # train images and annotations path
-train_image_path = "/SCDD-image-segmentation-keras/test/example_dataset/images_prepped_train"
-train_annotations_path = "/SCDD-image-segmentation-keras/test/example_dataset/annotations_prepped_train"
+train_image_path = "/SCDD-image-segmentation-keras/share/SCDD_20211104/images_train_original"
+train_annotations_path = "/SCDD-image-segmentation-keras/share/SCDD_20211104/masks_coded_train_original"
 
 # test images and annotations path
-test_image_path = "/SCDD-image-segmentation-keras/test/example_dataset/images_prepped_test"
-test_annotation_dir ="/SCDD-image-segmentation-keras/test/example_dataset/annotations_prepped_test"
+test_image_path = "/SCDD-image-segmentation-keras/share/SCDD_20211104/images_test"
+test_annotation_dir ="/SCDD-image-segmentation-keras/share/SCDD_20211104/masks_coded_test"
 
 # Checkpoint path
-checkpoint_path ="/SCDD-image-segmentation-keras/checkpoint/example_vgg_unet_1"
+checkpoint_path ="/SCDD-image-segmentation-keras/checkpoint/SCDD_20211104_vgg_unet/"
 
 model = vgg_unet(n_classes=wandb.config.n_classes ,  input_height=wandb.config.input_height, input_width=wandb.config.input_width)
 
