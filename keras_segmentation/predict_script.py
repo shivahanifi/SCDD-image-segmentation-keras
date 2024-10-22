@@ -28,8 +28,19 @@ test_annotation_dir ="/SCDD-image-segmentation-keras/share/SCDD_20211104/masks_c
 # Checkpoint path
 checkpoint_path ="/SCDD-image-segmentation-keras/checkpoint/SCDD_20211104_vgg_unet/SCDD_vgg_unet_epoch_01.h5"
 
-# Load model from the checkpoint
-model = model_from_checkpoint_path(checkpoint_path)
+# Paths to save prediction
+prediction_output_dir = "/SCDD-image-segmentation-keras/share/predictions_SCDD_20211104"
+if not os.path.exists(prediction_output_dir):
+    os.makedirs(prediction_output_dir)
+
+# Verify checkpoint exists
+if os.path.exists(checkpoint_path):
+    # Create and compile your model
+    model = vgg_unet(n_classes=24, input_height=416, input_width=608)
+    # After training, save the model
+    model.save(checkpoint_path)
+else:
+    raise FileNotFoundError(f"Checkpoint not found at: {checkpoint_path}")
 
 # Custom WandB callback to log loss and accuracy after each batch/epoch
 class WandbCallback(Callback):
