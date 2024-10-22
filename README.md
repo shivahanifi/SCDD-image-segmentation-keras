@@ -17,7 +17,7 @@ xhost +local:docker
 After building the docker run the docker with the following command to have a shared folder with the host and also the graphical interface available.
 
 ```
-sudo docker run --name scdd_isk -v /home/shiva/Documents/code/SCDD-image-segmentation-keras/share:/SCDD-image-segmentation-keras/share -e DISPLAY=$DISPLAY -v /tmp/.X11-unix/:/tmp/.X11-unix --env QT_X11_NO_MITSHM=1 -it -v ~/.ssh:/root/.ssh scdd_isk
+sudo docker run -v /home/shiva/Documents/code/SCDD-image-segmentation-keras/share:/SCDD-image-segmentation-keras/share -e DISPLAY=$DISPLAY -v /tmp/.X11-unix/:/tmp/.X11-unix --env QT_X11_NO_MITSHM=1 -it -v ~/.ssh:/root/.ssh scdd_isk
 ```
 
 ## Downloading the test set
