@@ -4,12 +4,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 from keras_segmentation.models.unet import vgg_unet
 from keras.callbacks import Callback, ModelCheckpoint
+import io
+from contextlib import redirect_stdout
+import keras.backend as K
+
 
 
 
 # tracking with wandb
 wandb.init(
-    name = "train_SCDD_20211104_saving_checkpoint_h5",
+    name = "train_SCDD_20211104_logging_model",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -18,7 +22,7 @@ wandb.init(
         "n_classes": 24,
         "input_height": 416,
         "input_width": 608,
-        "epochs":1,
+        "epochs":5,
     })
 
 # Train images and annotations path
@@ -38,9 +42,37 @@ if not os.path.exists(checkpoint_path):
 prediction_output_dir = "/SCDD-image-segmentation-keras/share/predictions_SCDD_20211104"
 if not os.path.exists(prediction_output_dir):
     os.makedirs(prediction_output_dir)
+    
+
+# Capture model summary
+def get_model_summary(model):
+    stream = io.StringIO()
+    with redirect_stdout(stream):
+        model.summary()
+    return stream.getvalue()
 
 # Define the model 
 model = vgg_unet(n_classes=wandb.config.n_classes ,  input_height=wandb.config.input_height, input_width=wandb.config.input_width)
+
+# Log model summary to wandb
+model_summary = get_model_summary(model)
+wandb.log({"model_summary": model_summary})
+
+
+# Log total parameters
+total_params = model.count_params()
+
+# Calculate trainable and non-trainable parameters
+trainable_params = np.sum([K.count_params(w) for w in model.trainable_weights])
+non_trainable_params = np.sum([K.count_params(w) for w in model.non_trainable_weights])
+
+# Log trainable and non-trainable parameters to WandB
+wandb.log({
+    "total_params": total_params,
+    "trainable_params": trainable_params,
+    "non_trainable_params": non_trainable_params
+})
+
 
 # Custom WandB callback to log loss and accuracy after each batch/epoch
 class WandbCallback(Callback):
@@ -96,6 +128,12 @@ for img_name in test_images:
     # Log prediction to WandB
     wandb.log({"predictions": [wandb.Image(output_file, caption=f"Prediction: {img_name}")]})
 
+# Log loss function and layer information
+wandb.config.update({
+    "loss_function": model.loss,
+    "optimizer": model.optimizer.get_config() if model.optimizer else "Not Defined",
+    "layers": [layer.name for layer in model.layers]
+})
 
 # evaluating the model 
 evaluation_result= model.evaluate_segmentation( inp_images_dir= test_image_path , annotations_dir= test_annotation_dir)
