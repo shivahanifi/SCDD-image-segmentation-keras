@@ -4,10 +4,10 @@ data/
 share/
 
 # wandb
-/SCDD-image-segmentation-keras/wandb 
+wandb/ 
 
 # checkpoints
-/SCDD-image-segmentation-keras/checkpoint
+checkpoint/
 
 sync.expect
 

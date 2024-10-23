@@ -9,16 +9,15 @@ from keras_segmentation.predict import model_from_checkpoint_path
 
 # tracking with wandb
 wandb.init(
-    name = "SCDD_20211104_predict_from_checkpoint_h5",
+    name = "SCDD_20211104_predict_from_checkpoint_05_h5",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
         "architecture": "vgg_unet",
-        "dataset": "example_dataset",
+        "dataset": "SCDD_20211104",
         "n_classes": 24,
         "input_height": 416,
         "input_width": 608,
-        "epochs":1,
     })
 
 # test images and annotations path
@@ -26,7 +25,7 @@ test_image_path = "/SCDD-image-segmentation-keras/share/SCDD_20211104/images_tes
 test_annotation_dir ="/SCDD-image-segmentation-keras/share/SCDD_20211104/masks_coded_test"
 
 # Checkpoint path
-checkpoint_path ="/SCDD-image-segmentation-keras/checkpoint/SCDD_20211104_vgg_unet/SCDD_vgg_unet_epoch_01.h5"
+checkpoint_path ="/SCDD-image-segmentation-keras/checkpoint/SCDD_20211104_vgg_unet/SCDD_vgg_unet_epoch_05.h5"
 
 # Paths to save prediction
 prediction_output_dir = "/SCDD-image-segmentation-keras/share/predictions_SCDD_20211104"
