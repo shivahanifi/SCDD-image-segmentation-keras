@@ -13,7 +13,7 @@ import keras.backend as K
 
 # tracking with wandb
 wandb.init(
-    name = "train_SCDD_20211104_logging_model",
+    name = "train_SCDD_20211104_save_best_model_1epoch",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -22,7 +22,7 @@ wandb.init(
         "n_classes": 24,
         "input_height": 416,
         "input_width": 608,
-        "epochs":5,
+        "epochs":1,
     })
 
 # Train images and annotations path
@@ -94,10 +94,10 @@ class WandbCallback(Callback):
 
 # ModelCheckpoint callback to save model weights
 checkpoint_callback = ModelCheckpoint(
-    filepath=os.path.join(checkpoint_path, "SCDD_vgg_unet_epoch_{epoch:02d}.h5"),  # Save model for each epoch
-    save_weights_only=True,  # Save only the weights, not the full model
-    save_best_only=False,  # Save weights after every epoch, not just the best one
-    monitor='loss',  # Monitor training loss (you can change to validation loss if available)
+    filepath=os.path.join(checkpoint_path, "SCDD_vgg_unet_epoch_{epoch:02d}.h5"), 
+    save_weights_only=False, 
+    save_best_only=True,  
+    monitor='loss',  
     verbose=1
 )
 

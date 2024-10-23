@@ -5,11 +5,12 @@ import numpy as np
 from keras_segmentation.models.unet import vgg_unet
 from keras.callbacks import Callback
 from keras_segmentation.predict import model_from_checkpoint_path
+from keras import backend as K
 
 
 # tracking with wandb
 wandb.init(
-    name = "SCDD_20211104_predict_from_checkpoint_05_h5",
+    name = "SCDD_20211104_predict_from_checkpoint_05_inference_mode",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -32,12 +33,12 @@ prediction_output_dir = "/SCDD-image-segmentation-keras/share/predictions_SCDD_2
 if not os.path.exists(prediction_output_dir):
     os.makedirs(prediction_output_dir)
 
-# Verify checkpoint exists
+# Load the model
 if os.path.exists(checkpoint_path):
-    # Create and compile your model
-    model = vgg_unet(n_classes=24, input_height=416, input_width=608)
-    # After training, save the model
-    model.save(checkpoint_path)
+    model = vgg_unet(n_classes=wandb.config.n_classes ,  input_height=wandb.config.input_height, input_width=wandb.config.input_width)
+    model.trainable = False
+    K.set_learning_phase(0)  # Set to inference mode
+    model.load_weights(checkpoint_path)
 else:
     raise FileNotFoundError(f"Checkpoint not found at: {checkpoint_path}")
 
