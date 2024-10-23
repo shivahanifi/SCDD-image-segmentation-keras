@@ -6,11 +6,12 @@ from keras_segmentation.models.unet import vgg_unet
 from keras.callbacks import Callback
 from keras_segmentation.predict import model_from_checkpoint_path
 from keras import backend as K
+from keras.models import load_model
 
 
 # tracking with wandb
 wandb.init(
-    name = "SCDD_20211104_predict_from_checkpoint_05_inference_mode",
+    name = "SCDD_20211104_predict_best_model",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -26,7 +27,7 @@ test_image_path = "/SCDD-image-segmentation-keras/share/SCDD_20211104/images_tes
 test_annotation_dir ="/SCDD-image-segmentation-keras/share/SCDD_20211104/masks_coded_test"
 
 # Checkpoint path
-checkpoint_path ="/SCDD-image-segmentation-keras/checkpoint/SCDD_20211104_vgg_unet/SCDD_vgg_unet_epoch_05.h5"
+checkpoint_path ="/SCDD-image-segmentation-keras/checkpoint/SCDD_20211104_vgg_unet/"
 
 # Paths to save prediction
 prediction_output_dir = "/SCDD-image-segmentation-keras/share/predictions_SCDD_20211104"
@@ -35,10 +36,7 @@ if not os.path.exists(prediction_output_dir):
 
 # Load the model
 if os.path.exists(checkpoint_path):
-    model = vgg_unet(n_classes=wandb.config.n_classes ,  input_height=wandb.config.input_height, input_width=wandb.config.input_width)
-    model.trainable = False
-    K.set_learning_phase(0)  # Set to inference mode
-    model.load_weights(checkpoint_path)
+    model = model_from_checkpoint_path(checkpoint_path)
 else:
     raise FileNotFoundError(f"Checkpoint not found at: {checkpoint_path}")
 

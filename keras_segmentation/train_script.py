@@ -3,7 +3,8 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 from keras_segmentation.models.unet import vgg_unet
-from keras.callbacks import Callback, ModelCheckpoint
+from keras.callbacks import Callback
+from keras_segmentation.train import CheckpointsCallback
 import io
 from contextlib import redirect_stdout
 import keras.backend as K
@@ -13,7 +14,7 @@ import keras.backend as K
 
 # tracking with wandb
 wandb.init(
-    name = "train_SCDD_20211104_save_best_model_1epoch",
+    name = "train_SCDD_20211104__save_chaeckpoint_call_back",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -92,14 +93,19 @@ class WandbCallback(Callback):
             "batch_accuracy": logs.get('accuracy')
         })
 
-# ModelCheckpoint callback to save model weights
-checkpoint_callback = ModelCheckpoint(
-    filepath=os.path.join(checkpoint_path, "SCDD_vgg_unet_epoch_{epoch:02d}.h5"), 
-    save_weights_only=False, 
-    save_best_only=True,  
-    monitor='loss',  
-    verbose=1
-)
+# # ModelCheckpoint callback to save model weights
+# checkpoint_callback = ModelCheckpoint(
+#     #filepath=os.path.join(checkpoint_path, "SCDD_vgg_unet_epoch_{epoch:02d}.h5"), 
+#     filepath=os.path.join(checkpoint_path, "SCDD_vgg_unet_epoch_bes_model.h5"), 
+#     save_weights_only=False, 
+#     save_best_only=True,  
+#     monitor='loss',  
+#     verbose=1
+# )
+
+# Initialize the CheckpointsCallback
+checkpoint_callback = CheckpointsCallback(checkpoint_path)
+
 
 # Train the model with the custom callback
 model.train(
@@ -109,8 +115,10 @@ model.train(
     epochs=wandb.config.epochs,
     batch_size = 2,
     steps_per_epoch=len(os.listdir(train_image_path)) // 2,
-    callbacks=[WandbCallback(), checkpoint_callback]  # Add the custom callback here
+    callbacks=[WandbCallback(), checkpoint_callback] 
 )
+
+wandb.save(os.path.join(checkpoint_path, "*"))
 
 # Get test image file names
 test_images = os.listdir(test_image_path)
