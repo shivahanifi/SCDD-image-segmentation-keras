@@ -9,38 +9,35 @@ import io
 from contextlib import redirect_stdout
 import keras.backend as K
 
-
-
-
 # tracking with wandb
 wandb.init(
-    name = "train_SCDD_20211104__save_chaeckpoint_call_back",
+    name = "train_SCDD_20211104_augmented",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
         "architecture": "vgg_unet",
-        "dataset": "SCDD_20211104",
+        "dataset": "SCDD_20211104_augmented",
         "n_classes": 24,
         "input_height": 416,
         "input_width": 608,
-        "epochs":1,
+        "epochs":5,
     })
 
 # Train images and annotations path
-train_image_path = "/SCDD-image-segmentation-keras/share/SCDD_20211104/images_train_original"
-train_annotations_path = "/SCDD-image-segmentation-keras/share/SCDD_20211104/masks_coded_train_original"
+train_image_path = "/SCDD-image-segmentation-keras/share/SCDD_20211104/images_train_augmented"
+train_annotations_path = "/SCDD-image-segmentation-keras/share/SCDD_20211104/masks_coded_train_augmented"
 
 # Test images and annotations path
 test_image_path = "/SCDD-image-segmentation-keras/share/SCDD_20211104/images_test"
 test_annotation_dir ="/SCDD-image-segmentation-keras/share/SCDD_20211104/masks_coded_test"
 
 # Checkpoint path
-checkpoint_path ="/SCDD-image-segmentation-keras/checkpoint/SCDD_20211104_vgg_unet/"
+checkpoint_path ="/SCDD-image-segmentation-keras/checkpoint/SCDD_20211104_augmented_vgg_unet/"
 if not os.path.exists(checkpoint_path):
     os.makedirs(checkpoint_path)
 
 # Paths to save prediction
-prediction_output_dir = "/SCDD-image-segmentation-keras/share/predictions_SCDD_20211104"
+prediction_output_dir = "/SCDD-image-segmentation-keras/share/predictions_SCDD_20211104_augmented"
 if not os.path.exists(prediction_output_dir):
     os.makedirs(prediction_output_dir)
     
@@ -93,21 +90,10 @@ class WandbCallback(Callback):
             "batch_accuracy": logs.get('accuracy')
         })
 
-# # ModelCheckpoint callback to save model weights
-# checkpoint_callback = ModelCheckpoint(
-#     #filepath=os.path.join(checkpoint_path, "SCDD_vgg_unet_epoch_{epoch:02d}.h5"), 
-#     filepath=os.path.join(checkpoint_path, "SCDD_vgg_unet_epoch_bes_model.h5"), 
-#     save_weights_only=False, 
-#     save_best_only=True,  
-#     monitor='loss',  
-#     verbose=1
-# )
-
 # Initialize the CheckpointsCallback
 checkpoint_callback = CheckpointsCallback(checkpoint_path)
 
-
-# Train the model with the custom callback
+# Train the model with the custom wandb callback
 model.train(
     train_images=train_image_path,
     train_annotations=train_annotations_path,
@@ -117,8 +103,6 @@ model.train(
     steps_per_epoch=len(os.listdir(train_image_path)) // 2,
     callbacks=[WandbCallback(), checkpoint_callback] 
 )
-
-wandb.save(os.path.join(checkpoint_path, "*"))
 
 # Get test image file names
 test_images = os.listdir(test_image_path)
@@ -145,6 +129,8 @@ wandb.config.update({
 
 # evaluating the model 
 evaluation_result= model.evaluate_segmentation( inp_images_dir= test_image_path , annotations_dir= test_annotation_dir)
+
+wandb.save(os.path.join(checkpoint_path, "*"))
 
 print(evaluation_result)
 
