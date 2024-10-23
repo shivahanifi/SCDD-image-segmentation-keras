@@ -1,17 +1,38 @@
 import wandb
+import json
 import os
 import matplotlib.pyplot as plt
 import numpy as np
 from keras_segmentation.models.unet import vgg_unet
 from keras.callbacks import Callback
-from keras_segmentation.predict import model_from_checkpoint_path
 from keras import backend as K
 from keras.models import load_model
+from keras_segmentation.predict import model_from_checkpoint_path
 
+
+def model_from_specific_checkpoint_path(checkpoints_path, specific_checkpoint_name):
+    from .models.all_models import model_from_name
+    specific_checkpoint_path = os.path.join(checkpoints_path, specific_checkpoint_name)
+    assert (os.path.isfile(specific_checkpoint_path + "_config.json")), "Checkpoint not found."
+    model_config = json.loads(open(specific_checkpoint_path + "_config.json", "r").read())
+    model = model_from_name[model_config['model_class']](
+        model_config['n_classes'], input_height=model_config['input_height'],
+        input_width=model_config['input_width'])
+    
+    latest_weights = specific_checkpoint_path + ".h5"  # Assuming .h5 for weights
+    assert (os.path.isfile(latest_weights)), "Weights file not found."
+    
+    print("Loaded weights from ", latest_weights)
+    status = model.load_weights(latest_weights)
+
+    if status is not None:
+        status.expect_partial()
+
+    return model
 
 # tracking with wandb
 wandb.init(
-    name = "SCDD_20211104_predict_best_model",
+    name = "SCDD_20211104_predict_multiple_latest_checkpoint",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -28,9 +49,10 @@ test_annotation_dir ="/SCDD-image-segmentation-keras/share/SCDD_20211104/masks_c
 
 # Checkpoint path
 checkpoint_path ="/SCDD-image-segmentation-keras/checkpoint/SCDD_20211104_vgg_unet/"
+specific_checkpoint_name = ".0.index"
 
 # Paths to save prediction
-prediction_output_dir = "/SCDD-image-segmentation-keras/share/predictions_SCDD_20211104"
+prediction_output_dir = "/SCDD-image-segmentation-keras/share/multi_predictions_SCDD_20211104"
 if not os.path.exists(prediction_output_dir):
     os.makedirs(prediction_output_dir)
 
@@ -59,23 +81,23 @@ class WandbCallback(Callback):
         })
 
 
-# Get test image file names
-test_images = os.listdir(test_image_path)
+# # Get test image file names
+# test_images = os.listdir(test_image_path)
 
-# Loop over all test images, make predictions and save them
-for img_name in test_images:
-    img_path = os.path.join(test_image_path, img_name)
-    output_file = os.path.join(prediction_output_dir, f"pred_{img_name}")
+# # Loop over all test images, make predictions and save them
+# for img_name in test_images:
+#     img_path = os.path.join(test_image_path, img_name)
+#     output_file = os.path.join(prediction_output_dir, f"pred_{img_name}")
     
-    # Predict segmentation
-    out = model.predict_segmentation(
-        inp=img_path,
-        out_fname=output_file
-    )
-    
-    # Log prediction to WandB
-    wandb.log({"predictions": [wandb.Image(output_file, caption=f"Prediction: {img_name}")]})
-    plt.imshow(out)
+# Predict segmentation
+predictions = model.predict_multiple(
+    inp_dir=test_image_path,
+    out_dir=prediction_output_dir
+)
+
+for out_frame in os.listdir(prediction_output_dir):
+    # Log the image with its index as part of the caption
+    wandb.log({f"predictions/{out_frame}": wandb.Image(os.path.join(prediction_output_dir, out_frame), caption=f"Prediction for {out_frame}")})
 
 
 
