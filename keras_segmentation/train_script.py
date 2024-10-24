@@ -1,11 +1,11 @@
 import wandb
 import os
+import io
 import matplotlib.pyplot as plt
 import numpy as np
 from keras_segmentation.models.unet import vgg_unet
 from keras.callbacks import Callback
 from keras_segmentation.train import CheckpointsCallback
-import io
 from contextlib import redirect_stdout
 import keras.backend as K
 
@@ -52,6 +52,9 @@ def get_model_summary(model):
 # Define the model 
 model = vgg_unet(n_classes=wandb.config.n_classes ,  input_height=wandb.config.input_height, input_width=wandb.config.input_width)
 
+# Log gradients and parameter updates
+wandb.watch(model)
+
 # Log model summary to wandb
 model_summary = get_model_summary(model)
 wandb.log({"model_summary": model_summary})
@@ -65,12 +68,14 @@ trainable_params = np.sum([K.count_params(w) for w in model.trainable_weights])
 non_trainable_params = np.sum([K.count_params(w) for w in model.non_trainable_weights])
 
 # Log trainable and non-trainable parameters to WandB
-wandb.log({
-    "total_params": total_params,
-    "trainable_params": trainable_params,
-    "non_trainable_params": non_trainable_params
-})
-
+# wandb.log({
+#     "total_params": total_params,
+#     "trainable_params": trainable_params,
+#     "non_trainable_params": non_trainable_params
+# })
+wandb.config.total_params = total_params
+wandb.config.trainable_params = trainable_params
+wandb.config.non_trainable_params = non_trainable_params
 
 # Custom WandB callback to log loss and accuracy after each batch/epoch
 class WandbCallback(Callback):
