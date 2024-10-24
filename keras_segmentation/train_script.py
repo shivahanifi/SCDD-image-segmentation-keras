@@ -1,6 +1,8 @@
 import wandb
 import os
 import io
+import csv
+import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from keras_segmentation.models.unet import vgg_unet
@@ -30,6 +32,12 @@ train_annotations_path = "/SCDD-image-segmentation-keras/share/SCDD_20211104/mas
 # Test images and annotations path
 test_image_path = "/SCDD-image-segmentation-keras/share/SCDD_20211104/images_test"
 test_annotation_dir ="/SCDD-image-segmentation-keras/share/SCDD_20211104/masks_coded_test"
+
+# CSV file for classes
+csv_path = "/SCDD-image-segmentation-keras/share/SCDD_20211104/ListOfClassesAndColorCodes_20211104.csv"
+df = pd.read_csv(csv_path)
+colors = df[['Red', 'Green','Blue']].apply(lambda x: (x['Red'], x['Green'], x['Blue']), axis=1).tolist()
+class_names = df['Desc'].tolist()
 
 # Checkpoint path
 checkpoint_path ="/SCDD-image-segmentation-keras/checkpoint/SCDD_20211104_augmented_vgg_unet/"
@@ -136,10 +144,15 @@ wandb.save(os.path.join(checkpoint_path, "*"))
 
 print(evaluation_result)
 
+# Prepare class-wise IoU for logging
+class_wise_IU = evaluation_result['class_wise_IU']
+wandb.config.labels_Desc = class_names
+class_iou_dict = {f"class_{i}:{class_names[i]}": iou for i, iou in enumerate(class_wise_IU)}
+
 # Log evaluation results
 wandb.log({"frequency_weighted_IU": evaluation_result['frequency_weighted_IU'], 
             "mean_IU": evaluation_result['mean_IU'], 
-            "class_wise_IU": evaluation_result['class_wise_IU'], 
+            "class_wise_IU": class_iou_dict, 
             })
 
 # Finish the WandB run
