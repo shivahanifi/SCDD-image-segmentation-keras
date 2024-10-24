@@ -52,12 +52,9 @@ def get_model_summary(model):
 # Define the model 
 model = vgg_unet(n_classes=wandb.config.n_classes ,  input_height=wandb.config.input_height, input_width=wandb.config.input_width)
 
-# Log gradients and parameter updates
-wandb.watch(model)
-
 # Log model summary to wandb
 model_summary = get_model_summary(model)
-wandb.log({"model_summary": model_summary})
+wandb.summary['model summary'] = model_summary
 
 
 # Log total parameters
