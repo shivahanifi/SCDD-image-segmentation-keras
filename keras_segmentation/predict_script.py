@@ -61,33 +61,6 @@ if os.path.exists(checkpoint_path):
     model = model_from_checkpoint_path(checkpoint_path)
 else:
     raise FileNotFoundError(f"Checkpoint not found at: {checkpoint_path}")
-
-# Custom WandB callback to log loss and accuracy after each batch/epoch
-class WandbCallback(Callback):
-    def on_epoch_end(self, epoch, logs=None):
-        """Log loss and accuracy after each epoch."""
-        wandb.log({
-            "epoch": epoch + 1,
-            "loss": logs.get('loss'),
-            "accuracy": logs.get('accuracy')
-        })
-
-    def on_batch_end(self, batch, logs=None):
-        """Log loss and accuracy after each batch."""
-        wandb.log({
-            "batch": batch + 1,
-            "batch_loss": logs.get('loss'),
-            "batch_accuracy": logs.get('accuracy')
-        })
-
-
-# # Get test image file names
-# test_images = os.listdir(test_image_path)
-
-# # Loop over all test images, make predictions and save them
-# for img_name in test_images:
-#     img_path = os.path.join(test_image_path, img_name)
-#     output_file = os.path.join(prediction_output_dir, f"pred_{img_name}")
     
 # Predict segmentation
 predictions = model.predict_multiple(
