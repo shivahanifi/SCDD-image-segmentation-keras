@@ -33,7 +33,7 @@ def model_from_specific_checkpoint_path(checkpoints_path, specific_checkpoint_na
 
 # tracking with wandb
 wandb.init(
-    name = "SCDD_20211104_predict_multiple_latest_checkpoint_augmented_class_wise_IU_color_mapped",
+    name = "SCDD_20211104_predict_multiple_latest_checkpoint_augmented_step_metric",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -53,15 +53,16 @@ wandb.config.colors = colors
 wandb.config.labels_Desc = class_names
 
 # test images and annotations path
-test_image_path = "/SCDD-image-segmentation-keras/share/SCDD_20211104/images_test"
-test_annotation_dir ="/SCDD-image-segmentation-keras/share/SCDD_20211104/masks_coded_test"
+test_image_path = "/SCDD-image-segmentation-keras/share/SCDD_20211104/images_val"
+test_annotation_dir ="/SCDD-image-segmentation-keras/share/SCDD_20211104/masks_coded_val"
+
 
 # Checkpoint path
 checkpoint_path ="/SCDD-image-segmentation-keras/checkpoint/SCDD_20211104_augmented_vgg_unet/"
 specific_checkpoint_name = ".0.index"
 
 # Paths to save prediction
-prediction_output_dir = "/SCDD-image-segmentation-keras/share/multi_predictions_SCDD_20211104_augmented_class_wise_IU"
+prediction_output_dir = "/SCDD-image-segmentation-keras/share/multi_predictions_SCDD_20211104_val"
 if not os.path.exists(prediction_output_dir):
     os.makedirs(prediction_output_dir)
 
@@ -93,13 +94,25 @@ print(evaluation_result)
 
 # Prepare class-wise IoU for logging
 class_wise_IU = evaluation_result['class_wise_IU']
-class_iou_dict = {f"class_{i}:{class_names[i]}": iou for i, iou in enumerate(class_wise_IU)}
+
+# Create a wandb.Table for class-wise IoU logging (initialize once)
+class_wise_IU_table = wandb.Table(columns=["Class Name", "Class Index", "IoU", "Run Name"])
+
+
+# Get the current run name (you can also use run.id if you prefer)
+run_name = wandb.run.name
+
+# Populate the table with class names, indices, IoU values, and run name
+for i, iou in enumerate(class_wise_IU):
+    class_wise_IU_table.add_data(class_names[i], i, iou, run_name)
+
+# Log the table to WandB
+wandb.log({"class_wise_IU_table": class_wise_IU_table})
 
 
 # Log evaluation results
 wandb.log({"frequency_weighted_IU": evaluation_result['frequency_weighted_IU'], 
-            "mean_IU": evaluation_result['mean_IU'], 
-            "class_wise_IU": class_iou_dict,  
+            "mean_IU": evaluation_result['mean_IU'],
             })
 
 # Finish the WandB run
