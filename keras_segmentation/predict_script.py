@@ -89,30 +89,25 @@ for out_frame in os.listdir(prediction_output_dir):
 
 # evaluating the model 
 evaluation_result= model.evaluate_segmentation( inp_images_dir= test_image_path , annotations_dir= test_annotation_dir)
-
 print(evaluation_result)
 
 # Prepare class-wise IoU for logging
 class_wise_IU = evaluation_result['class_wise_IU']
+class_iou_dict = {f"class_{i}:{class_names[i]}_IU": iou for i, iou in enumerate(class_wise_IU)}
 
 # Create a wandb.Table for class-wise IoU logging (initialize once)
 class_wise_IU_table = wandb.Table(columns=["Class Name", "Class Index", "IoU", "Run Name"])
-
-
-# Get the current run name (you can also use run.id if you prefer)
 run_name = wandb.run.name
-
-# Populate the table with class names, indices, IoU values, and run name
 for i, iou in enumerate(class_wise_IU):
     class_wise_IU_table.add_data(class_names[i], i, iou, run_name)
-
-# Log the table to WandB
 wandb.log({"class_wise_IU_table": class_wise_IU_table})
 
 
 # Log evaluation results
 wandb.log({"frequency_weighted_IU": evaluation_result['frequency_weighted_IU'], 
             "mean_IU": evaluation_result['mean_IU'],
+            "class_wise_IU": class_iou_dict,
+            "run_name": run_name,
             })
 
 # Finish the WandB run
