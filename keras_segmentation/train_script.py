@@ -30,7 +30,7 @@ class_names = df['Desc'].tolist()
 
 # tracking with wandb
 run = wandb.init(
-    name = "train_SCDD_20211104_augmented_e1_speFull",
+    name = "train_SCDD_20211104_test_save_dir_e2",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -39,7 +39,7 @@ run = wandb.init(
         "n_classes": 24,
         "input_height": 416,
         "input_width": 608,
-        "epochs":1,
+        "epochs":2,
         "batch_size":2,
         "steps_per_epoch":1,
         "colors":colors,
@@ -123,15 +123,12 @@ model.train(
     callbacks=[WandbCallback(), checkpoint_callback] 
 )
 
-
-artifact = wandb.Artifact(name = wandb.run.name, type = "model")
-# List files in the checkpoint directory and add only files to the artifact
-ckp_files = os.listdir(checkpoint_path)
-for ckp in ckp_files:
-    full_path = os.path.join(checkpoint_path, ckp)
-    artifact.add_file(local_path=full_path, name=ckp)
-artifact.save()
-wandb.save(os.path.join(checkpoint_path, "*"))
+# After training, save the best model as an .h5 file
+best_model_h5_path = os.path.join(checkpoint_path, f"{wandb.run.name}_best_model.h5")
+model.save(best_model_h5_path)
+artifact = wandb.Artifact(name=wandb.run.name, type="model")
+artifact.add_dir(checkpoint_path)
+wandb.log_artifact(artifact)
 
 # Predict segmentation
 predictions = model.predict_multiple(
