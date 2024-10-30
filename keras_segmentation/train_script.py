@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from keras_segmentation.models.unet import vgg_unet
-from keras.callbacks import Callback
+from keras.callbacks import Callback, ModelCheckpoint
 from keras_segmentation.train import CheckpointsCallback
 from contextlib import redirect_stdout
 import keras.backend as K
@@ -30,7 +30,7 @@ class_names = df['Desc'].tolist()
 
 # tracking with wandb
 run = wandb.init(
-    name = "train_SCDD_20211104_augmented_e3_speFull",
+    name = "train_SCDD_20211104_test_save_dir_e2",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -39,9 +39,9 @@ run = wandb.init(
         "n_classes": 24,
         "input_height": 416,
         "input_width": 608,
-        "epochs":7,
+        "epochs":2,
         "batch_size":2,
-        "steps_per_epoch":len(os.listdir(train_image_path)),
+        "steps_per_epoch":1,
         "colors":colors,
         "labels_Desc":class_names,
     })
@@ -50,7 +50,6 @@ run = wandb.init(
 checkpoint_path = os.path.join(main_path, wandb.run.name, "checkpoint/")
 if not os.path.exists(checkpoint_path):
     os.makedirs(checkpoint_path)
-print(checkpoint_path)
 
 # Paths to save prediction
 prediction_output_dir = os.path.join(main_path , wandb.run.name, "predictions/")
@@ -102,7 +101,16 @@ class WandbCallback(Callback):
         })
 
 # Initialize the CheckpointsCallback
-checkpoint_callback = CheckpointsCallback(checkpoint_path)
+#checkpoint_callback = CheckpointsCallback(checkpoint_path)
+
+# Create ModelCheckpoint callback to save only the best model based on validation metric
+checkpoint_callback = ModelCheckpoint(
+    checkpoint_path,
+    monitor="accuracy", 
+    save_best_only=True,
+    save_weights_only=False,  # Save entire model, not just weights
+    verbose=1
+)
 
 # Train the model with the custom wandb callback
 model.train(
@@ -116,16 +124,24 @@ model.train(
 )
 
 
-artifact = wandb.Artifact(name = wandb.run.name, type = "model")
-ckp_files = os.listdir(checkpoint_path)
-for ckp in ckp_files:
-    full_path = os.path.join(checkpoint_path, ckp)
-    artifact.add_file(local_path=full_path, name=ckp)
-    # Save the model as .h5 file
-    h5_model_path = os.path.join(checkpoint_path, f"{ckp}_model.h5")
-    model.save(h5_model_path)
-artifact.save()
-wandb.save(os.path.join(checkpoint_path, "*"))
+# artifact = wandb.Artifact(name = wandb.run.name, type = "model")
+# ckp_files = os.listdir(checkpoint_path)
+# for ckp in ckp_files:
+#     full_path = os.path.join(checkpoint_path, ckp)
+#     artifact.add_file(local_path=full_path, name=ckp)
+#     # Save the model as .h5 file
+#     h5_model_path = os.path.join(checkpoint_path, f"{ckp}_model.h5")
+#     model.save(h5_model_path)
+# artifact.save()
+# wandb.save(os.path.join(checkpoint_path, "*"))
+
+# After training, save the best model as an .h5 file
+best_model_h5_path = os.path.join(checkpoint_path, f"{wandb.run.name}_best_model.h5")
+model.save(best_model_h5_path)
+
+artifact = wandb.Artifact(name=wandb.run.name, type="model")
+artifact.add_dir(checkpoint_path)
+wandb.log_artifact(artifact)
 
 # Predict segmentation
 predictions = model.predict_multiple(
