@@ -25,7 +25,7 @@ class_names = df['Desc'].tolist()
 
 # tracking with wandb
 run = wandb.init(
-    name = "train_SCDD_20211104_test_save_dir_e2",
+    name = "train_SCDD_20211104_test_save_dir_e2_best",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -52,20 +52,8 @@ if not os.path.exists(prediction_output_dir):
     os.makedirs(prediction_output_dir)
 print(prediction_output_dir)  
 
-# # Capture model summary
-# def get_model_summary(model):
-#     stream = io.StringIO()
-#     with redirect_stdout(stream):
-#         model.summary()
-#     return stream.getvalue()
-
 # Define the model 
 model = vgg_unet(n_classes=wandb.config.n_classes ,  input_height=wandb.config.input_height, input_width=wandb.config.input_width)
-
-# # Log model summary to wandb
-# model_summary = get_model_summary(model)
-# wandb.summary['model summary'] = model_summary
-
 
 # Log total parameters
 total_params = model.count_params()
@@ -94,9 +82,6 @@ class WandbCallback(Callback):
             "batch_loss": logs.get('loss'),
             "batch_accuracy": logs.get('accuracy')
         })
-
-# Initialize the CheckpointsCallback
-#checkpoint_callback = CheckpointsCallback(checkpoint_path)
 
 # Create ModelCheckpoint callback to save only the best model based on validation metric
 checkpoint_callback = ModelCheckpoint(
