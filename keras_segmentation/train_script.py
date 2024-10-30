@@ -1,14 +1,9 @@
 import wandb
 import os
-import io
-import csv
 import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
 from keras_segmentation.models.unet import vgg_unet
 from keras.callbacks import Callback, ModelCheckpoint
-from keras_segmentation.train import CheckpointsCallback
-from contextlib import redirect_stdout
 import keras.backend as K
 
 # Main path
@@ -57,19 +52,19 @@ if not os.path.exists(prediction_output_dir):
     os.makedirs(prediction_output_dir)
 print(prediction_output_dir)  
 
-# Capture model summary
-def get_model_summary(model):
-    stream = io.StringIO()
-    with redirect_stdout(stream):
-        model.summary()
-    return stream.getvalue()
+# # Capture model summary
+# def get_model_summary(model):
+#     stream = io.StringIO()
+#     with redirect_stdout(stream):
+#         model.summary()
+#     return stream.getvalue()
 
 # Define the model 
 model = vgg_unet(n_classes=wandb.config.n_classes ,  input_height=wandb.config.input_height, input_width=wandb.config.input_width)
 
-# Log model summary to wandb
-model_summary = get_model_summary(model)
-wandb.summary['model summary'] = model_summary
+# # Log model summary to wandb
+# model_summary = get_model_summary(model)
+# wandb.summary['model summary'] = model_summary
 
 
 # Log total parameters
@@ -109,7 +104,8 @@ checkpoint_callback = ModelCheckpoint(
     monitor="accuracy", 
     save_best_only=True,
     save_weights_only=False,  # Save entire model, not just weights
-    verbose=1
+    save_freq="epoch", # Save model at the end of the epoch if it is the best
+    verbose=1,
 )
 
 # Train the model with the custom wandb callback
