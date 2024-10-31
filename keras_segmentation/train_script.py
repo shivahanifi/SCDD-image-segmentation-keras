@@ -25,7 +25,7 @@ class_names = df['Desc'].tolist()
 
 # tracking with wandb
 run = wandb.init(
-    name = "train_SCDD_20211104_test_save_dir_e2_best",
+    name = "train_SCDD_20211104_CWC",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -52,8 +52,59 @@ if not os.path.exists(prediction_output_dir):
     os.makedirs(prediction_output_dir)
 print(prediction_output_dir)  
 
+
+# class weight assignment - set C
+weights = [
+    0.2,  # Label 0: "bckgnd" 
+    1.0,  # Label 1: "sp multi" 
+    1.0,  # Label 2: "sp mono" 
+    1.0,  # Label 3: "sp dogbone" 
+    3.0,  # Label 4: "ribbons"
+    1.0,  # Label 5: "border" 
+    1.0,  # Label 6: "text" 
+    1.0,  # Label 7: "padding" 
+    1.0,  # Label 8: "clamp" 
+    1.0,  # Label 9: "busbars" 
+    1.0,  # Label 10: "crack rbn edge" 
+    10.0, # Label 11: "inactive" 
+    1.0,  # Label 12: "rings" 
+    1.0,  # Label 13: "material" 
+    20.0, # Label 14: "crack" 
+    10.0, # Label 15: "gridline" 
+    1.0,  # Label 16: "splice" 
+    1.0,  # Label 17: "dead cell"
+    1.0,  # Label 18: "corrosion" 
+    1.0,  # Label 19: "belt mark" 
+    1.0,  # Label 20: "edge dark" 
+    1.0,  # Label 21: "frame edge" 
+    1.0,  # Label 22: "jbox" 
+    1.0,   # Label 23: "meas artifact"
+]
+
+# Log class weights to WandB
+wandb.config.update({
+    "class_weights": weights
+})
+
+# Define weighted categorical cross-entropy loss
+def weighted_categorical_crossentropy(weights):
+    def loss(y_true, y_pred):
+        y_true = K.one_hot(K.cast(K.flatten(y_true), 'int32'), num_classes=len(weights))
+        y_pred = K.flatten(y_pred)
+        # Calculate weighted loss
+        loss = K.categorical_crossentropy(y_true, y_pred)
+        loss = K.sum(loss * K.constant(weights))
+        return loss
+    return loss
+
+# Define the loss function with the computed class weights
+custom_loss = weighted_categorical_crossentropy(weights)
+
 # Define the model 
 model = vgg_unet(n_classes=wandb.config.n_classes ,  input_height=wandb.config.input_height, input_width=wandb.config.input_width)
+
+# Re-compile the model with the custom loss function
+model.compile(optimizer='adam', loss=custom_loss, metrics=['accuracy'])
 
 # Log total parameters
 total_params = model.count_params()
