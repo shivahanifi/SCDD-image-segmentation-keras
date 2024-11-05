@@ -25,7 +25,7 @@ class_names = df['Desc'].tolist()
 
 # tracking with wandb
 run = wandb.init(
-    name = "train_SCDD_20211104_CWC",
+    name = "train_SCDD_20211104_w3_e1_speFull",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -34,9 +34,9 @@ run = wandb.init(
         "n_classes": 24,
         "input_height": 416,
         "input_width": 608,
-        "epochs":2,
+        "epochs":1,
         "batch_size":2,
-        "steps_per_epoch":1,
+        "steps_per_epoch":len(os.listdir(train_image_path)),
         "colors":colors,
         "labels_Desc":class_names,
     })
