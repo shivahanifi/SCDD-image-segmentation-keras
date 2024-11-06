@@ -1,3 +1,8 @@
+import sys
+# Add your custom path to sys.path at the beginning to prioritize it
+custom_path = "/SCDD-image-segmentation-keras"
+if custom_path not in sys.path:
+    sys.path.insert(0, custom_path)    
 import wandb
 import os
 import pandas as pd
@@ -6,8 +11,9 @@ from keras_segmentation.models.unet import vgg_unet
 from keras.callbacks import Callback, ModelCheckpoint
 import keras.backend as K
 
+
 # Main path
-main_path = "/SCDD-image-segmentation-keras/share/"
+main_path = os.path.join(custom_path, "share")
 
 # Train images and annotations path
 train_image_path = os.path.join(main_path, "SCDD_20211104/images_train_augmented")
@@ -22,10 +28,12 @@ csv_path = os.path.join(main_path, "SCDD_20211104/ListOfClassesAndColorCodes_202
 df = pd.read_csv(csv_path)
 colors = df[['Red', 'Green','Blue']].apply(lambda x: (x['Red'], x['Green'], x['Blue']), axis=1).tolist()
 class_names = df['Desc'].tolist()
+class_labels = df['Label'].tolist()
+class_dict = {class_labels[i]: class_names[i] for i in range(len(class_labels))}
 
 # tracking with wandb
-run = wandb.init(
-    name = "train_SCDD_20211104_CWC",
+wandb.init(
+    name = "train_SCDD_20211104_overlay_log_test",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -34,11 +42,13 @@ run = wandb.init(
         "n_classes": 24,
         "input_height": 416,
         "input_width": 608,
-        "epochs":2,
+        "epochs":1,
         "batch_size":2,
-        "steps_per_epoch":1,
+        "steps_per_epoch":5,
         "colors":colors,
         "labels_Desc":class_names,
+        "labels": class_labels,
+        "class_dict": class_dict,
     })
 
 # Checkpoint path
@@ -54,57 +64,56 @@ print(prediction_output_dir)
 
 
 # class weight assignment - set C
-weights = [
-    0.2,  # Label 0: "bckgnd" 
-    1.0,  # Label 1: "sp multi" 
-    1.0,  # Label 2: "sp mono" 
-    1.0,  # Label 3: "sp dogbone" 
-    3.0,  # Label 4: "ribbons"
-    1.0,  # Label 5: "border" 
-    1.0,  # Label 6: "text" 
-    1.0,  # Label 7: "padding" 
-    1.0,  # Label 8: "clamp" 
-    1.0,  # Label 9: "busbars" 
-    1.0,  # Label 10: "crack rbn edge" 
-    10.0, # Label 11: "inactive" 
-    1.0,  # Label 12: "rings" 
-    1.0,  # Label 13: "material" 
-    20.0, # Label 14: "crack" 
-    10.0, # Label 15: "gridline" 
-    1.0,  # Label 16: "splice" 
-    1.0,  # Label 17: "dead cell"
-    1.0,  # Label 18: "corrosion" 
-    1.0,  # Label 19: "belt mark" 
-    1.0,  # Label 20: "edge dark" 
-    1.0,  # Label 21: "frame edge" 
-    1.0,  # Label 22: "jbox" 
-    1.0,   # Label 23: "meas artifact"
-]
-
-# Log class weights to WandB
-wandb.config.update({
-    "class_weights": weights
-})
+weights = {
+    0 : 0.2,  # "bckgnd" 
+    1: 1.0,  # "sp multi" 
+    2: 1.0,  # "sp mono" 
+    3: 1.0,  # "sp dogbone" 
+    4: 3.0,  # "ribbons"
+    5: 1.0,  # "border" 
+    6: 1.0,  # "text" 
+    7: 1.0,  # "padding" 
+    8: 1.0,  # "clamp" 
+    9: 1.0,  # "busbars" 
+    10: 1.0,  # "crack rbn edge" 
+    11: 10.0, # "inactive" 
+    12: 1.0,  # "rings" 
+    13: 1.0,  # "material" 
+    14: 20.0, # "crack" 
+    15: 10.0, # "gridline" 
+    16: 1.0,  # "splice" 
+    17: 1.0,  # "dead cell"
+    18: 1.0,  # "corrosion" 
+    19: 1.0,  # "belt mark" 
+    20: 1.0,  # "edge dark" 
+    21: 1.0,  # "frame edge" 
+    22: 1.0,  # "jbox" 
+    23: 1.0,  # "meas artifact"
+}
 
 # Define weighted categorical cross-entropy loss
 def weighted_categorical_crossentropy(weights):
     def loss(y_true, y_pred):
         y_true = K.one_hot(K.cast(K.flatten(y_true), 'int32'), num_classes=len(weights))
         y_pred = K.flatten(y_pred)
+        # Log weights applied to the loss function
+        print("Class Weights Applied in Loss Function:", weights)
+        wandb.log({"actual_class_weights_used": weights})
         # Calculate weighted loss
         loss = K.categorical_crossentropy(y_true, y_pred)
         loss = K.sum(loss * K.constant(weights))
         return loss
     return loss
 
-# Define the loss function with the computed class weights
-custom_loss = weighted_categorical_crossentropy(weights)
 
 # Define the model 
 model = vgg_unet(n_classes=wandb.config.n_classes ,  input_height=wandb.config.input_height, input_width=wandb.config.input_width)
 
+# Define the loss function with the computed class weights
+custom_loss = weighted_categorical_crossentropy(weights)
 # Re-compile the model with the custom loss function
 model.compile(optimizer='adam', loss=custom_loss, metrics=['accuracy'])
+
 
 # Log total parameters
 total_params = model.count_params()
@@ -169,6 +178,7 @@ predictions = model.predict_multiple(
     class_names=class_names,
     show_legends=True,
     colors=colors,
+    class_dict=class_dict,
 )
 
 all_images = {}
