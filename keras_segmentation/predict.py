@@ -176,7 +176,7 @@ def predict_multiple(model=None, inps=None, inp_dir=None, out_dir=None,
                      checkpoints_path=None, overlay_img=False,
                      class_names=None, show_legends=False, colors=class_colors,
                      prediction_width=None, prediction_height=None, read_image_type=1,
-                     class_dict=None,):
+                     class_dict=None,gt_mask_dir=None,):
     if model is None and (checkpoints_path is not None):
         model = model_from_checkpoint_path(checkpoints_path)
 
@@ -185,6 +185,12 @@ def predict_multiple(model=None, inps=None, inp_dir=None, out_dir=None,
             os.path.join(inp_dir, "*.png")) + \
             glob.glob(os.path.join(inp_dir, "*.jpeg"))
         inps = sorted(inps)
+        
+    if gt_mask_dir:
+        gt_masks = glob.glob(os.path.join(gt_mask_dir, "*.jpg")) + glob.glob(
+            os.path.join(gt_mask_dir, "*.png")) + \
+            glob.glob(os.path.join(gt_mask_dir, "*.jpeg"))
+        gt_masks = sorted(gt_masks)
 
     assert type(inps) is list
 
@@ -219,19 +225,36 @@ def predict_multiple(model=None, inps=None, inp_dir=None, out_dir=None,
             
             # Resize the original input image to match the model output dimensions
             input_image = cv2.imread(inp)
-            #resized_input_image = cv2.resize(input_image, (model.output_height, model.output_width), interpolation=cv2.INTER_NEAREST)
+            
+            # mask with custom colors
+            # pr_colored = get_colored_segmentation_image(pr, model.n_classes, colors=colors)
+
             # Resize the prediction mask to match the input image dimensions
             resized_mask = cv2.resize(pr, (input_image.shape[1], input_image.shape[0]), interpolation=cv2.INTER_NEAREST)
             # Extract the image name from the input path for the table
             image_name = os.path.basename(inp)
             
-            # Create a WandB image with masks
-            mask_img = wandb.Image(
-                input_image,
-                masks={
-                    "prediction": {"mask_data": resized_mask, "class_labels": class_dict}
-                },
-            )
+            if gt_mask_dir:
+                # Ground truth mask
+                gt_mask = cv2.imread(gt_masks[i], cv2.IMREAD_GRAYSCALE)
+                gt_mask_array = np.array(gt_mask)                
+            
+                # Create a WandB image with masks
+                mask_img = wandb.Image(
+                    input_image,
+                    masks={
+                        "prediction": {"mask_data": resized_mask, "class_labels": class_dict},
+                        "ground_truth": {"mask_data": gt_mask_array, "class_labels": class_dict},
+                    },
+                )
+            else:
+                # Create a WandB image with masks
+                mask_img = wandb.Image(
+                    input_image,
+                    masks={
+                        "prediction": {"mask_data": resized_mask, "class_labels": class_dict},
+                    },
+                )                
             
             # Add the image with mask to the table
             segmentation_table.add_data(image_name, mask_img)

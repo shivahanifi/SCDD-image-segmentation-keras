@@ -33,7 +33,7 @@ class_dict = {class_labels[i]: class_names[i] for i in range(len(class_labels))}
 
 # tracking with wandb
 wandb.init(
-    name = "train_SCDD_20211104_overlay_log_test",
+    name = "train_SCDD_20211104_overlay_gt_vs_pr_e1_speFull",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -44,7 +44,7 @@ wandb.init(
         "input_width": 608,
         "epochs":1,
         "batch_size":2,
-        "steps_per_epoch":5,
+        "steps_per_epoch":len(os.listdir(train_image_path)),
         "colors":colors,
         "labels_Desc":class_names,
         "labels": class_labels,
@@ -179,6 +179,7 @@ predictions = model.predict_multiple(
     show_legends=True,
     colors=colors,
     class_dict=class_dict,
+    gt_mask_dir=test_annotation_dir,
 )
 
 all_images = {}
