@@ -200,6 +200,8 @@ def predict_multiple(model=None, inps=None, inp_dir=None, out_dir=None,
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
             
+            
+    # TODO: Define a logging function        
     if class_dict:
         # Create a WandB table to log predictions with masks
         segmentation_table = wandb.Table(columns=["ID", "Image with Mask"])

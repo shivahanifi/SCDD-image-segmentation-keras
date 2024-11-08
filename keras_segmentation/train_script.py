@@ -33,7 +33,7 @@ class_dict = {class_labels[i]: class_names[i] for i in range(len(class_labels))}
 
 # tracking with wandb
 wandb.init(
-    name = "train_SCDD_20211104_overlay_gt_vs_pr_e1_speFull",
+    name = "train_SCDD_20211104_overlay_e15_speFull",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -42,7 +42,7 @@ wandb.init(
         "n_classes": 24,
         "input_height": 416,
         "input_width": 608,
-        "epochs":1,
+        "epochs":15,
         "batch_size":2,
         "steps_per_epoch":len(os.listdir(train_image_path)),
         "colors":colors,
@@ -63,56 +63,42 @@ if not os.path.exists(prediction_output_dir):
 print(prediction_output_dir)  
 
 
-# class weight assignment - set C
-weights = {
-    0 : 0.2,  # "bckgnd" 
-    1: 1.0,  # "sp multi" 
-    2: 1.0,  # "sp mono" 
-    3: 1.0,  # "sp dogbone" 
-    4: 3.0,  # "ribbons"
-    5: 1.0,  # "border" 
-    6: 1.0,  # "text" 
-    7: 1.0,  # "padding" 
-    8: 1.0,  # "clamp" 
-    9: 1.0,  # "busbars" 
-    10: 1.0,  # "crack rbn edge" 
-    11: 10.0, # "inactive" 
-    12: 1.0,  # "rings" 
-    13: 1.0,  # "material" 
-    14: 20.0, # "crack" 
-    15: 10.0, # "gridline" 
-    16: 1.0,  # "splice" 
-    17: 1.0,  # "dead cell"
-    18: 1.0,  # "corrosion" 
-    19: 1.0,  # "belt mark" 
-    20: 1.0,  # "edge dark" 
-    21: 1.0,  # "frame edge" 
-    22: 1.0,  # "jbox" 
-    23: 1.0,  # "meas artifact"
-}
-
-# Define weighted categorical cross-entropy loss
-def weighted_categorical_crossentropy(weights):
-    def loss(y_true, y_pred):
-        y_true = K.one_hot(K.cast(K.flatten(y_true), 'int32'), num_classes=len(weights))
-        y_pred = K.flatten(y_pred)
-        # Log weights applied to the loss function
-        print("Class Weights Applied in Loss Function:", weights)
-        wandb.log({"actual_class_weights_used": weights})
-        # Calculate weighted loss
-        loss = K.categorical_crossentropy(y_true, y_pred)
-        loss = K.sum(loss * K.constant(weights))
-        return loss
-    return loss
+weights = [
+    0.2,  # "bckgnd"
+    1.0,  # "sp multi"
+    1.0,  # "sp mono"
+    1.0,  # "sp dogbone"
+    3.0,  # "ribbons"
+    1.0,  # "border"
+    1.0,  # "text"
+    1.0,  # "padding"
+    1.0,  # "clamp"
+    1.0,  # "busbars"
+    1.0,  # "crack rbn edge"
+    10.0, # "inactive"
+    1.0,  # "rings"
+    1.0,  # "material"
+    20.0, # "crack"
+    10.0, # "gridline"
+    1.0,  # "splice"
+    1.0,  # "dead cell"
+    1.0,  # "corrosion"
+    1.0,  # "belt mark"
+    1.0,  # "edge dark"
+    1.0,  # "frame edge"
+    1.0,  # "jbox"
+    1.0   # "meas artifact"
+]
 
 
 # Define the model 
 model = vgg_unet(n_classes=wandb.config.n_classes ,  input_height=wandb.config.input_height, input_width=wandb.config.input_width)
 
-# Define the loss function with the computed class weights
-custom_loss = weighted_categorical_crossentropy(weights)
-# Re-compile the model with the custom loss function
-model.compile(optimizer='adam', loss=custom_loss, metrics=['accuracy'])
+# # Define the loss function with the computed class weights
+# wcce = model.WeightedCategoricalCrossentropy(weights)
+# custom_loss = wcce(targets,predictions)
+# # Re-compile the model with the custom loss function
+# model.compile(optimizer='adam', loss=custom_loss, metrics=['accuracy'])
 
 
 # Log total parameters
