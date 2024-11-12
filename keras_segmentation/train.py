@@ -57,172 +57,6 @@ class CheckpointsCallback(Callback):
             print("saved ", self.checkpoints_path + "." + str(epoch))
 
 
-def train(model,
-          train_images,
-          train_annotations,
-          input_height=None,
-          input_width=None,
-          n_classes=None,
-          verify_dataset=True,
-          checkpoints_path=None,
-          epochs=5,
-          batch_size=2,
-          validate=False,
-          val_images=None,
-          val_annotations=None,
-          val_batch_size=2,
-          auto_resume_checkpoint=False,
-          load_weights=None,
-          steps_per_epoch=512,
-          val_steps_per_epoch=512,
-          gen_use_multiprocessing=False,
-          ignore_zero_class=False,
-          optimizer_name='adam',
-          do_augment=False,
-          augmentation_name="aug_all",
-          callbacks=None,
-          custom_augmentation=None,
-          other_inputs_paths=None,
-          preprocessing=None,
-          read_image_type=1  # cv2.IMREAD_COLOR = 1 (rgb),
-                             # cv2.IMREAD_GRAYSCALE = 0,
-                             # cv2.IMREAD_UNCHANGED = -1 (4 channels like RGBA)
-         ):
-    from .models.all_models import model_from_name
-    # check if user gives model name instead of the model object
-    if isinstance(model, six.string_types):
-        # create the model from the name
-        assert (n_classes is not None), "Please provide the n_classes"
-        if (input_height is not None) and (input_width is not None):
-            model = model_from_name[model](
-                n_classes, input_height=input_height, input_width=input_width)
-        else:
-            model = model_from_name[model](n_classes)
-
-    n_classes = model.n_classes
-    input_height = model.input_height
-    input_width = model.input_width
-    output_height = model.output_height
-    output_width = model.output_width
-
-    if validate:
-        assert val_images is not None
-        assert val_annotations is not None
-
-    if optimizer_name is not None:
-
-        if ignore_zero_class:
-            loss_k = masked_categorical_crossentropy
-        else:
-            loss_k = 'categorical_crossentropy'
-
-        model.compile(loss=loss_k,
-                      optimizer=optimizer_name,
-                      metrics=['accuracy'])
-
-    if checkpoints_path is not None:
-        config_file = checkpoints_path + "_config.json"
-        dir_name = os.path.dirname(config_file)
-
-        if ( not os.path.exists(dir_name) )  and len( dir_name ) > 0 :
-            os.makedirs(dir_name)
-
-        with open(config_file, "w") as f:
-            json.dump({
-                "model_class": model.model_name,
-                "n_classes": n_classes,
-                "input_height": input_height,
-                "input_width": input_width,
-                "output_height": output_height,
-                "output_width": output_width
-            }, f)
-
-    if load_weights is not None and len(load_weights) > 0:
-        print("Loading weights from ", load_weights)
-        model.load_weights(load_weights)
-
-    initial_epoch = 0
-
-    if auto_resume_checkpoint and (checkpoints_path is not None):
-        latest_checkpoint = find_latest_checkpoint(checkpoints_path)
-        if latest_checkpoint is not None:
-            print("Loading the weights from latest checkpoint ",
-                  latest_checkpoint)
-            model.load_weights(latest_checkpoint)
-
-            initial_epoch = int(latest_checkpoint.split('.')[-1])
-
-    if verify_dataset:
-        print("Verifying training dataset")
-        verified = verify_segmentation_dataset(train_images,
-                                               train_annotations,
-                                               n_classes)
-        assert verified
-        if validate:
-            print("Verifying validation dataset")
-            verified = verify_segmentation_dataset(val_images,
-                                                   val_annotations,
-                                                   n_classes)
-            assert verified
-
-    train_gen = image_segmentation_generator(
-        train_images, train_annotations,  batch_size,  n_classes,
-        input_height, input_width, output_height, output_width,
-        do_augment=do_augment, augmentation_name=augmentation_name,
-        custom_augmentation=custom_augmentation, other_inputs_paths=other_inputs_paths,
-        preprocessing=preprocessing, read_image_type=read_image_type)
-
-    if validate:
-        val_gen = image_segmentation_generator(
-            val_images, val_annotations,  val_batch_size,
-            n_classes, input_height, input_width, output_height, output_width,
-            other_inputs_paths=other_inputs_paths,
-            preprocessing=preprocessing, read_image_type=read_image_type)
-
-    if callbacks is None and (not checkpoints_path is  None) :
-        default_callback = ModelCheckpoint(
-                filepath=checkpoints_path + ".{epoch:05d}",
-                save_weights_only=True,
-                verbose=True
-            )
-
-        if sys.version_info[0] < 3: # for pyhton 2 
-            default_callback = CheckpointsCallback(checkpoints_path)
-
-        callbacks = [
-            default_callback
-        ]
-
-    if callbacks is None:
-        callbacks = []
-
-    if not validate:
-        model.fit(train_gen, steps_per_epoch=steps_per_epoch,
-                  epochs=epochs, callbacks=callbacks, initial_epoch=initial_epoch)
-    else:
-        model.fit(train_gen,
-                  steps_per_epoch=steps_per_epoch,
-                  validation_data=val_gen,
-                  validation_steps=val_steps_per_epoch,
-                  epochs=epochs, callbacks=callbacks,
-                  use_multiprocessing=gen_use_multiprocessing, initial_epoch=initial_epoch)
-
-# # Define weighted categorical cross-entropy loss
-# def weighted_categorical_crossentropy(weights):
-#     def loss(y_true, y_pred):
-#         y_true = K.one_hot(K.cast(K.flatten(y_true), 'int32'), num_classes=len(weights))
-#         y_pred = K.flatten(y_pred)
-#         # Log weights applied to the loss function
-#         print("Class Weights Applied in Loss Function:", weights)
-#         wandb.log({"actual_class_weights_used": weights})
-#         # Calculate weighted loss
-#         loss = K.categorical_crossentropy(y_true, y_pred)
-#         loss = K.sum(loss * K.constant(weights))
-#         return loss
-#     return loss
-
-
-#@tf.keras.saving.register_keras_serializable(name="weighted_categorical_crossentropy")
 def weighted_categorical_crossentropy(target, output, weights, axis=-1):
     target = tf.convert_to_tensor(target)
     output = tf.convert_to_tensor(output)
@@ -321,3 +155,174 @@ class WeightedCategoricalCrossentropy:
                 config["fn"] = get(fn_name)
         return cls(**config)
     
+
+
+def train(model,
+          train_images,
+          train_annotations,
+          input_height=None,
+          input_width=None,
+          n_classes=None,
+          verify_dataset=True,
+          checkpoints_path=None,
+          epochs=5,
+          batch_size=2,
+          validate=False,
+          val_images=None,
+          val_annotations=None,
+          val_batch_size=2,
+          auto_resume_checkpoint=False,
+          load_weights=None,
+          steps_per_epoch=512,
+          val_steps_per_epoch=512,
+          gen_use_multiprocessing=False,
+          ignore_zero_class=False,
+          optimizer_name='adam',
+          do_augment=False,
+          augmentation_name="aug_all",
+          callbacks=None,
+          custom_augmentation=None,
+          other_inputs_paths=None,
+          preprocessing=None,
+          read_image_type=1,  # cv2.IMREAD_COLOR = 1 (rgb),
+                             # cv2.IMREAD_GRAYSCALE = 0,
+                             # cv2.IMREAD_UNCHANGED = -1 (4 channels like RGBA)
+          class_weights=None,
+         ):
+    from .models.all_models import model_from_name
+    # check if user gives model name instead of the model object
+    if isinstance(model, six.string_types):
+        # create the model from the name
+        assert (n_classes is not None), "Please provide the n_classes"
+        if (input_height is not None) and (input_width is not None):
+            model = model_from_name[model](
+                n_classes, input_height=input_height, input_width=input_width)
+        else:
+            model = model_from_name[model](n_classes)
+
+    n_classes = model.n_classes
+    input_height = model.input_height
+    input_width = model.input_width
+    output_height = model.output_height
+    output_width = model.output_width
+
+    if validate:
+        assert val_images is not None
+        assert val_annotations is not None
+
+    if optimizer_name is not None:
+
+        if ignore_zero_class:
+            loss_k = masked_categorical_crossentropy
+        elif class_weights:
+            loss_k = WeightedCategoricalCrossentropy(class_weights)
+        else:
+            loss_k = 'categorical_crossentropy'
+
+        model.compile(loss=loss_k,
+                      optimizer=optimizer_name,
+                      metrics=['accuracy'])
+
+    if checkpoints_path is not None:
+        config_file = checkpoints_path + "_config.json"
+        dir_name = os.path.dirname(config_file)
+
+        if ( not os.path.exists(dir_name) )  and len( dir_name ) > 0 :
+            os.makedirs(dir_name)
+
+        with open(config_file, "w") as f:
+            json.dump({
+                "model_class": model.model_name,
+                "n_classes": n_classes,
+                "input_height": input_height,
+                "input_width": input_width,
+                "output_height": output_height,
+                "output_width": output_width
+            }, f)
+
+    if load_weights is not None and len(load_weights) > 0:
+        print("Loading weights from ", load_weights)
+        model.load_weights(load_weights)
+
+    initial_epoch = 0
+
+    if auto_resume_checkpoint and (checkpoints_path is not None):
+        latest_checkpoint = find_latest_checkpoint(checkpoints_path)
+        if latest_checkpoint is not None:
+            print("Loading the weights from latest checkpoint ",
+                  latest_checkpoint)
+            model.load_weights(latest_checkpoint)
+
+            initial_epoch = int(latest_checkpoint.split('.')[-1])
+
+    if verify_dataset:
+        print("Verifying training dataset")
+        verified = verify_segmentation_dataset(train_images,
+                                               train_annotations,
+                                               n_classes)
+        assert verified
+        if validate:
+            print("Verifying validation dataset")
+            verified = verify_segmentation_dataset(val_images,
+                                                   val_annotations,
+                                                   n_classes)
+            assert verified
+
+    train_gen = image_segmentation_generator(
+        train_images, train_annotations,  batch_size,  n_classes,
+        input_height, input_width, output_height, output_width,
+        do_augment=do_augment, augmentation_name=augmentation_name,
+        custom_augmentation=custom_augmentation, other_inputs_paths=other_inputs_paths,
+        preprocessing=preprocessing, read_image_type=read_image_type)
+
+    if validate:
+        val_gen = image_segmentation_generator(
+            val_images, val_annotations,  val_batch_size,
+            n_classes, input_height, input_width, output_height, output_width,
+            other_inputs_paths=other_inputs_paths,
+            preprocessing=preprocessing, read_image_type=read_image_type)
+
+    if callbacks is None and (not checkpoints_path is  None) :
+        default_callback = ModelCheckpoint(
+                filepath=checkpoints_path + ".{epoch:05d}",
+                save_weights_only=True,
+                verbose=True
+            )
+
+        if sys.version_info[0] < 3: # for pyhton 2 
+            default_callback = CheckpointsCallback(checkpoints_path)
+
+        callbacks = [
+            default_callback
+        ]
+
+    if callbacks is None:
+        callbacks = []
+
+    if not validate:
+        model.fit(train_gen, steps_per_epoch=steps_per_epoch,
+                  epochs=epochs, callbacks=callbacks, initial_epoch=initial_epoch,)
+    else:
+        model.fit(train_gen,
+                  steps_per_epoch=steps_per_epoch,
+                  validation_data=val_gen,
+                  validation_steps=val_steps_per_epoch,
+                  epochs=epochs, callbacks=callbacks,
+                  use_multiprocessing=gen_use_multiprocessing, initial_epoch=initial_epoch,)
+
+# # Define weighted categorical cross-entropy loss
+# def weighted_categorical_crossentropy(weights):
+#     def loss(y_true, y_pred):
+#         y_true = K.one_hot(K.cast(K.flatten(y_true), 'int32'), num_classes=len(weights))
+#         y_pred = K.flatten(y_pred)
+#         # Log weights applied to the loss function
+#         print("Class Weights Applied in Loss Function:", weights)
+#         wandb.log({"actual_class_weights_used": weights})
+#         # Calculate weighted loss
+#         loss = K.categorical_crossentropy(y_true, y_pred)
+#         loss = K.sum(loss * K.constant(weights))
+#         return loss
+#     return loss
+
+
+#@tf.keras.saving.register_keras_serializable(name="weighted_categorical_crossentropy")

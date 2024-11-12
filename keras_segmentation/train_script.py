@@ -33,7 +33,7 @@ class_dict = {class_labels[i]: class_names[i] for i in range(len(class_labels))}
 
 # tracking with wandb
 wandb.init(
-    name = "train_SCDD_20211104_overlay_e15_speFull",
+    name = "train_SCDD_20211104_w3_fit_test",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -42,7 +42,7 @@ wandb.init(
         "n_classes": 24,
         "input_height": 416,
         "input_width": 608,
-        "epochs":15,
+        "epochs":1,
         "batch_size":2,
         "steps_per_epoch":len(os.listdir(train_image_path)),
         "colors":colors,
@@ -63,7 +63,7 @@ if not os.path.exists(prediction_output_dir):
 print(prediction_output_dir)  
 
 
-weights = [
+class_weights = [
     0.2,  # "bckgnd"
     1.0,  # "sp multi"
     1.0,  # "sp mono"
@@ -89,7 +89,6 @@ weights = [
     1.0,  # "jbox"
     1.0   # "meas artifact"
 ]
-
 
 # Define the model 
 model = vgg_unet(n_classes=wandb.config.n_classes ,  input_height=wandb.config.input_height, input_width=wandb.config.input_width)
@@ -147,7 +146,8 @@ model.train(
     epochs=wandb.config.epochs,
     batch_size = wandb.config.batch_size,
     steps_per_epoch=wandb.config.steps_per_epoch,
-    callbacks=[WandbCallback(), checkpoint_callback] 
+    callbacks=[WandbCallback(), checkpoint_callback],
+    class_weights=class_weights,
 )
 
 # After training, save the best model as an .h5 file
