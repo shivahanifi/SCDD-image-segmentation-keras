@@ -33,7 +33,7 @@ class_dict = {class_labels[i]: class_names[i] for i in range(len(class_labels))}
 
 # tracking with wandb
 wandb.init(
-    name = "train_SCDD_20211104_w3_fit_test",
+    name = "train_SCDD_20211104_w6_e1_speFull",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -67,7 +67,7 @@ class_weights = [
     0.2,  # "bckgnd"
     1.0,  # "sp multi"
     1.0,  # "sp mono"
-    1.0,  # "sp dogbone"
+    50.0,  # "sp dogbone"
     3.0,  # "ribbons"
     1.0,  # "border"
     1.0,  # "text"
