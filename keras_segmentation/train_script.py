@@ -9,8 +9,12 @@ import pandas as pd
 import numpy as np
 from keras_segmentation.models.unet import vgg_unet
 from keras.callbacks import Callback, ModelCheckpoint
+from keras_segmentation.predict import evaluate_and_plot_confusion_matrix
 import keras.backend as K
-
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, precision_score, recall_score
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
 
 # Main path
 main_path = os.path.join(custom_path, "share")
@@ -33,7 +37,7 @@ class_dict = {class_labels[i]: class_names[i] for i in range(len(class_labels))}
 
 # tracking with wandb
 wandb.init(
-    name = "train_SCDD_20211104_w3_e1_speFull",
+    name = "train_SCDD_20211104_conf_test",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -44,7 +48,8 @@ wandb.init(
         "input_width": 608,
         "epochs":1,
         "batch_size":2,
-        "steps_per_epoch":len(os.listdir(train_image_path)),
+        "steps_per_epoch":1,
+        #"steps_per_epoch":len(os.listdir(train_image_path)),
         "colors":colors,
         "labels_Desc":class_names,
         "labels": class_labels,
@@ -62,7 +67,7 @@ if not os.path.exists(prediction_output_dir):
     os.makedirs(prediction_output_dir)
 print(prediction_output_dir)  
 
-
+focus_classes = [0, 1, 4, 14, 15]
 class_weights = [
     0.2,  # "bckgnd"
     1.0,  # "sp multi"
@@ -90,6 +95,76 @@ class_weights = [
     1.0   # "meas artifact"
 ]
 wandb.config.class_weights = class_weights
+
+class PrecisionRecallMatrixCallback(Callback):
+    def __init__(self, val_data, class_names, focus_classes):
+        """
+        Custom callback to compute precision and recall matrices for selected classes.
+        Args:
+            val_data: Tuple of validation data (val_images, val_labels)
+            class_names: List of all class names
+            focus_classes: List of class indices to focus on
+        """
+        super().__init__()
+        self.val_data = val_data
+        self.class_names = class_names
+        self.focus_classes = focus_classes  # Indices of classes to include
+
+    def on_epoch_end(self, epoch, logs=None):
+        val_images, val_labels = self.val_data
+        val_pred = np.argmax(self.model.predict(val_images), axis=-1)
+        val_true = np.argmax(val_labels, axis=-1)
+
+        # Filter predictions and labels for focus classes
+        mask = np.isin(val_true.flatten(), self.focus_classes)
+        filtered_true = val_true.flatten()[mask]
+        filtered_pred = val_pred.flatten()[mask]
+
+        # Remap the class indices to the range [0, len(focus_classes) - 1]
+        mapping = {class_idx: i for i, class_idx in enumerate(self.focus_classes)}
+        remapped_true = np.array([mapping[cls] for cls in filtered_true])
+        remapped_pred = np.array([mapping[cls] for cls in filtered_pred])
+
+        # Compute confusion matrix
+        cm = confusion_matrix(remapped_true, remapped_pred)
+        cm_recall = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+        cm_precision = cm.astype('float') / cm.sum(axis=0)[np.newaxis, :]
+
+        # Plot Precision Matrix
+        focus_class_names = [self.class_names[i] for i in self.focus_classes]
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(cm_precision, annot=True, fmt='.2f', cmap='viridis',
+                    xticklabels=focus_class_names, yticklabels=focus_class_names)
+        plt.title(f'Precision Matrix (Epoch {epoch + 1})')
+        plt.xlabel('Predicted Label')
+        plt.ylabel('True Label')
+        precision_img_path = f"precision_matrix_epoch_{epoch + 1}.png"
+        plt.savefig(precision_img_path)
+        plt.close()
+
+        # Log Precision Matrix to WandB
+        wandb.log({f"Precision Matrix (Epoch {epoch + 1})": wandb.Image(precision_img_path)})
+
+        # Plot Recall Matrix
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(cm_recall, annot=True, fmt='.2f', cmap='viridis',
+                    xticklabels=focus_class_names, yticklabels=focus_class_names)
+        plt.title(f'Recall Matrix (Epoch {epoch + 1})')
+        plt.xlabel('Predicted Label')
+        plt.ylabel('True Label')
+        recall_img_path = f"recall_matrix_epoch_{epoch + 1}.png"
+        plt.savefig(recall_img_path)
+        plt.close()
+
+        # Log Recall Matrix to WandB
+        wandb.log({f"Recall Matrix (Epoch {epoch + 1})": wandb.Image(recall_img_path)})
+
+
+# #precision_recall_callback = PrecisionRecallMatrixCallback(
+#     val_data=(test_image_path, test_annotation_dir),
+#     class_names=class_names,
+#     focus_classes=focus_classes,
+# )
 
 # Define the model 
 model = vgg_unet(n_classes=wandb.config.n_classes ,  input_height=wandb.config.input_height, input_width=wandb.config.input_width)
@@ -187,6 +262,8 @@ wandb.config.update({
 evaluation_result= model.evaluate_segmentation( inp_images_dir= test_image_path , annotations_dir= test_annotation_dir)
 print(evaluation_result)
 
+cm_evaluation = evaluate_and_plot_confusion_matrix(model=model, inp_images_dir= test_image_path , annotations_dir= test_annotation_dir, class_names=class_names,)
+print(cm_evaluation)
 
 # Prepare class-wise IoU for logging
 class_wise_IU = evaluation_result['class_wise_IU']

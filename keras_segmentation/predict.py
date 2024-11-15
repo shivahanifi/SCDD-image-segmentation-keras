@@ -4,6 +4,9 @@ import json
 import os
 import six
 import wandb
+import io
+from PIL import Image
+ 
 
 import cv2
 import numpy as np
@@ -14,6 +17,9 @@ from .train import find_latest_checkpoint
 from .data_utils.data_loader import get_image_array, get_segmentation_array,\
     DATA_LOADER_SEED, class_colors, get_pairs_from_paths
 from .models.config import IMAGE_ORDERING
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 
 random.seed(DATA_LOADER_SEED)
@@ -372,3 +378,93 @@ def evaluate(model=None, inp_images=None, annotations=None,
         "mean_IU": mean_IU,
         "class_wise_IU": cl_wise_score
     }
+
+
+import wandb
+import io
+from PIL import Image
+
+def evaluate_and_plot_confusion_matrix(model=None, inp_images=None, annotations=None,
+                                       inp_images_dir=None, annotations_dir=None, checkpoints_path=None,
+                                       read_image_type=1, class_names=None):
+
+    if model is None:
+        assert (checkpoints_path is not None), \
+            "Please provide the model or the checkpoints_path"
+        model = model_from_checkpoint_path(checkpoints_path)
+
+    if inp_images is None:
+        assert (inp_images_dir is not None), \
+            "Please provide inp_images or inp_images_dir"
+        assert (annotations_dir is not None), \
+            "Please provide inp_images or inp_images_dir"
+
+        paths = get_pairs_from_paths(inp_images_dir, annotations_dir)
+        paths = list(zip(*paths))
+        inp_images = list(paths[0])
+        annotations = list(paths[1])
+
+    assert type(inp_images) is list
+    assert type(annotations) is list
+
+    all_preds = []
+    all_gts = []
+
+    for inp, ann in tqdm(zip(inp_images, annotations)):
+        pr = predict(model, inp, read_image_type=read_image_type)
+        gt = get_segmentation_array(ann, model.n_classes,
+                                    model.output_width, model.output_height,
+                                    no_reshape=True, read_image_type=read_image_type)
+        gt = gt.argmax(-1)
+        pr = pr.flatten()
+        gt = gt.flatten()
+
+        all_preds.extend(pr)
+        all_gts.extend(gt)
+
+    # Compute confusion matrix
+    labels = list(range(model.n_classes))
+    cm = confusion_matrix(all_gts, all_preds, labels=labels)
+
+    # Plot confusion matrix
+    fig, ax = plt.subplots(2, 1, figsize=(12, 24))
+
+    # Precision matrix
+    cm_precision = cm / (cm.sum(axis=0, keepdims=True) + 1e-12)
+    sns.heatmap(cm_precision, annot=True, fmt=".2f", cmap="viridis",
+                xticklabels=class_names, yticklabels=class_names, ax=ax[0])
+    ax[0].set_title("Precision")
+    ax[0].set_xlabel("Predicted label")
+    ax[0].set_ylabel("True label")
+
+    # Recall matrix
+    cm_recall = cm / (cm.sum(axis=1, keepdims=True) + 1e-12)
+    sns.heatmap(cm_recall, annot=True, fmt=".2f", cmap="viridis",
+                xticklabels=class_names, yticklabels=class_names, ax=ax[1])
+    ax[1].set_title("Recall")
+    ax[1].set_xlabel("Predicted label")
+    ax[1].set_ylabel("True label")
+
+    plt.tight_layout()
+
+    # Save the plot to a BytesIO object
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    plt.close(fig)
+
+    # Convert BytesIO to PIL Image
+    image = Image.open(buf)
+
+    # Separate logging to different WandB panels
+    wandb.log({"Confusion Matrix/Plot": wandb.Image(image)})
+    wandb.log({"Metrics/Confusion Matrix": cm})
+    wandb.log({"Metrics/Precision Matrix": cm_precision.tolist()})
+    wandb.log({"Metrics/Recall Matrix": cm_recall.tolist()})
+
+    return {
+        "confusion_matrix": cm,
+        "precision_matrix": cm_precision,
+        "recall_matrix": cm_recall
+    }
+    

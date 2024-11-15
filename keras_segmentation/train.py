@@ -9,6 +9,10 @@ from keras.callbacks import ModelCheckpoint
 import tensorflow as tf
 import glob
 import sys
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, precision_score, recall_score
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
 
 def find_latest_checkpoint(checkpoints_path, fail_safe=True):
 
@@ -310,19 +314,65 @@ def train(model,
                   epochs=epochs, callbacks=callbacks,
                   use_multiprocessing=gen_use_multiprocessing, initial_epoch=initial_epoch,)
 
-# # Define weighted categorical cross-entropy loss
-# def weighted_categorical_crossentropy(weights):
-#     def loss(y_true, y_pred):
-#         y_true = K.one_hot(K.cast(K.flatten(y_true), 'int32'), num_classes=len(weights))
-#         y_pred = K.flatten(y_pred)
-#         # Log weights applied to the loss function
-#         print("Class Weights Applied in Loss Function:", weights)
-#         wandb.log({"actual_class_weights_used": weights})
-#         # Calculate weighted loss
-#         loss = K.categorical_crossentropy(y_true, y_pred)
-#         loss = K.sum(loss * K.constant(weights))
-#         return loss
-#     return loss
+class PrecisionRecallMatrixCallback(Callback):
+    def __init__(self, val_data, class_names, focus_classes):
+        """
+        Custom callback to compute precision and recall matrices for selected classes.
+        Args:
+            val_data: Tuple of validation data (val_images, val_labels)
+            class_names: List of all class names
+            focus_classes: List of class indices to focus on
+        """
+        super().__init__()
+        self.val_data = val_data
+        self.class_names = class_names
+        self.focus_classes = focus_classes  # Indices of classes to include
 
+    def on_epoch_end(self, epoch, logs=None):
+        val_images, val_labels = self.val_data
+        val_pred = np.argmax(self.model.predict(val_images), axis=-1)
+        val_true = np.argmax(val_labels, axis=-1)
 
-#@tf.keras.saving.register_keras_serializable(name="weighted_categorical_crossentropy")
+        # Filter predictions and labels for focus classes
+        mask = np.isin(val_true.flatten(), self.focus_classes)
+        filtered_true = val_true.flatten()[mask]
+        filtered_pred = val_pred.flatten()[mask]
+
+        # Remap the class indices to the range [0, len(focus_classes) - 1]
+        mapping = {class_idx: i for i, class_idx in enumerate(self.focus_classes)}
+        remapped_true = np.array([mapping[cls] for cls in filtered_true])
+        remapped_pred = np.array([mapping[cls] for cls in filtered_pred])
+
+        # Compute confusion matrix
+        cm = confusion_matrix(remapped_true, remapped_pred)
+        cm_recall = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+        cm_precision = cm.astype('float') / cm.sum(axis=0)[np.newaxis, :]
+
+        # Plot Precision Matrix
+        focus_class_names = [self.class_names[i] for i in self.focus_classes]
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(cm_precision, annot=True, fmt='.2f', cmap='viridis',
+                    xticklabels=focus_class_names, yticklabels=focus_class_names)
+        plt.title(f'Precision Matrix (Epoch {epoch + 1})')
+        plt.xlabel('Predicted Label')
+        plt.ylabel('True Label')
+        precision_img_path = f"precision_matrix_epoch_{epoch + 1}.png"
+        plt.savefig(precision_img_path)
+        plt.close()
+
+        # Log Precision Matrix to WandB
+        wandb.log({f"Precision Matrix (Epoch {epoch + 1})": wandb.Image(precision_img_path)})
+
+        # Plot Recall Matrix
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(cm_recall, annot=True, fmt='.2f', cmap='viridis',
+                    xticklabels=focus_class_names, yticklabels=focus_class_names)
+        plt.title(f'Recall Matrix (Epoch {epoch + 1})')
+        plt.xlabel('Predicted Label')
+        plt.ylabel('True Label')
+        recall_img_path = f"recall_matrix_epoch_{epoch + 1}.png"
+        plt.savefig(recall_img_path)
+        plt.close()
+
+        # Log Recall Matrix to WandB
+        wandb.log({f"Recall Matrix (Epoch {epoch + 1})": wandb.Image(recall_img_path)})
