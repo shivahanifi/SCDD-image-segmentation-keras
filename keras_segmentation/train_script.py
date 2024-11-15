@@ -37,7 +37,7 @@ class_dict = {class_labels[i]: class_names[i] for i in range(len(class_labels))}
 
 # tracking with wandb
 wandb.init(
-    name = "train_SCDD_20211104_conf_test",
+    name = "train_SCDD_20211104_e65_speFull",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
@@ -46,10 +46,10 @@ wandb.init(
         "n_classes": 24,
         "input_height": 416,
         "input_width": 608,
-        "epochs":1,
+        "epochs":65,
         "batch_size":2,
-        "steps_per_epoch":1,
-        #"steps_per_epoch":len(os.listdir(train_image_path)),
+        #"steps_per_epoch":1,
+        "steps_per_epoch":len(os.listdir(train_image_path)),
         "colors":colors,
         "labels_Desc":class_names,
         "labels": class_labels,
