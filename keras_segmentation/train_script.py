@@ -46,7 +46,7 @@ wandb.init(
         "n_classes": 24,
         "input_height": 416,
         "input_width": 608,
-        "epochs":65,
+        "epochs":15,
         "batch_size":2,
         #"steps_per_epoch":1,
         "steps_per_epoch":len(os.listdir(train_image_path)),
