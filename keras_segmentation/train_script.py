@@ -15,6 +15,12 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, precision_
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+import tensorflow as tf
+
+print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
+physical_devices = tf.config.experimental.list_physical_devices('GPU')
+for device in physical_devices:
+    tf.config.experimental.set_memory_growth(device, True)
 
 # Main path
 main_path = os.path.join(custom_path, "share")
