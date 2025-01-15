@@ -26,15 +26,19 @@ for device in physical_devices:
 main_path = os.path.join(custom_path, "share")
 
 # Train images and annotations path
-train_image_path = os.path.join(main_path, "SCDD_20211104/images_train_augmented")
-train_annotations_path = os.path.join(main_path, "SCDD_20211104/masks_coded_train_augmented")
+train_image_path = os.path.join(main_path, "dataset_20221008/el_images_train")
+train_annotation_path = os.path.join(main_path, "dataset_20221008/el_masks_train")
+
+# Validation images and annotations path
+val_image_path = os.path.join(main_path, "dataset_20221008/el_images_val")
+val_annotation_path = os.path.join(main_path, "dataset_20221008/el_masks_val")
 
 # Test images and annotations path
-test_image_path = os.path.join(main_path,"SCDD_20211104/images_test")
-test_annotation_dir = os.path.join(main_path, "SCDD_20211104/masks_coded_test")
+test_image_path = os.path.join(main_path,"dataset_20221008/el_images_test")
+test_annotation_dir = os.path.join(main_path, "dataset_20221008/el_masks_test")
 
 # CSV file for classes
-csv_path = os.path.join(main_path, "SCDD_20211104/ListOfClassesAndColorCodes_20211104.csv")
+csv_path = os.path.join(main_path, "dataset_20221008/ListOfClassesAndColorCodes_20221008.csv")
 df = pd.read_csv(csv_path)
 colors = df[['Red', 'Green','Blue']].apply(lambda x: (x['Red'], x['Green'], x['Blue']), axis=1).tolist()
 class_names = df['Desc'].tolist()
@@ -43,23 +47,25 @@ class_dict = {class_labels[i]: class_names[i] for i in range(len(class_labels))}
 
 # tracking with wandb
 wandb.init(
-    name = "train_SCDD_20211104_ubix_w3_e15_speFull",
+    name = "vgg-unet",
     project="scdd_segmentation_keras", 
     entity="ubix",
     config={
         "architecture": "vgg_unet",
         "dataset": "SCDD_20211104_augmented",
-        "n_classes": 24,
+        "n_classes": 29,
         "input_height": 416,
         "input_width": 608,
         "epochs":15,
-        "batch_size":2,
+        "batch_size":8,
         #"steps_per_epoch":1,
-        "steps_per_epoch":len(os.listdir(train_image_path)),
+        #"steps_per_epoch":len(os.listdir(train_image_path))//wandb.config.batch_size,
+        #"val_steps_per_epoch":len(os.listdir(val_image_path))//wandb.config.val_batch_size,
         "colors":colors,
         "labels_Desc":class_names,
         "labels": class_labels,
         "class_dict": class_dict,
+        "val_batch_size":16,
     })
 
 # Checkpoint path
@@ -75,30 +81,34 @@ print(prediction_output_dir)
 
 focus_classes = [0, 1, 4, 14, 15]
 class_weights = [
-    0.2,  # "bckgnd"
-    1.0,  # "sp multi"
-    1.0,  # "sp mono"
-    1.0,  # "sp dogbone"
-    3.0,  # "ribbons"
-    1.0,  # "border"
-    1.0,  # "text"
-    1.0,  # "padding"
-    1.0,  # "clamp"
-    1.0,  # "busbars"
-    1.0,  # "crack rbn edge"
-    10.0, # "inactive"
-    1.0,  # "rings"
-    1.0,  # "material"
-    20.0, # "crack"
-    10.0, # "gridline"
-    1.0,  # "splice"
-    1.0,  # "dead cell"
-    1.0,  # "corrosion"
-    1.0,  # "belt mark"
-    1.0,  # "edge dark"
-    1.0,  # "frame edge"
-    1.0,  # "jbox"
-    1.0   # "meas artifact"
+    0.15,  # "bckgnd"
+    0.25,  # "sp multi"
+    0.25,  # "sp mono"
+    0.27,  # "sp dogbone"
+    0.30,  # "ribbons"
+    0.25,  # "border"
+    0.27,  # "text"
+    0.20,  # "padding"
+    0.27,  # "clamp"
+    0.25,  # "busbars"
+    0.27,  # "crack rbn edge"
+    0.40,  # "inactive"
+    0.27,  # "rings"
+    0.25,  # "material"
+    0.45,  # "crack"
+    0.35,  # "gridline"
+    0.25,  # "splice"
+    0.27,  # "dead cell"
+    0.25,  # "corrosion"
+    0.27,  # "belt mark"
+    0.25,  # "edge dark"
+    0.25,  # "frame edge"
+    0.27,  # "jbox"
+    0.27,  # "sp mono halfcut"
+    0.25,  # "scuff"
+    0.25,  # "corrosion cell"
+    0.25,  # "brightening"
+    0.25,  # "star"
 ]
 wandb.config.class_weights = class_weights
 
@@ -135,6 +145,22 @@ class PrecisionRecallMatrixCallback(Callback):
         cm = confusion_matrix(remapped_true, remapped_pred)
         cm_recall = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
         cm_precision = cm.astype('float') / cm.sum(axis=0)[np.newaxis, :]
+        
+        # Plot Confusion Matrix
+        focus_class_names = [self.class_names[i] for i in self.focus_classes]
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='coolwarm',
+                    xticklabels=focus_class_names, yticklabels=focus_class_names)
+        plt.title(f'Confusion Matrix (Epoch {epoch + 1})')
+        plt.xlabel('Predicted Label')
+        plt.ylabel('True Label')
+        confusion_img_path = f"confusion_matrix_epoch_{epoch + 1}.png"
+        plt.savefig(confusion_img_path)
+        plt.close()
+
+        # Log Confusion Matrix to WandB
+        wandb.log({f"Confusion Matrix (Epoch {epoch + 1})": wandb.Image(confusion_img_path)})
+
 
         # Plot Precision Matrix
         focus_class_names = [self.class_names[i] for i in self.focus_classes]
@@ -199,7 +225,9 @@ class WandbCallback(Callback):
         wandb.log({
             "epoch": epoch + 1,
             "loss": logs.get('loss'),
-            "accuracy": logs.get('accuracy')
+            "accuracy": logs.get('accuracy'),
+            "val_loss": logs.get('val_loss'),  
+            "val_accuracy": logs.get('val_accuracy'),
         })
 
     def on_batch_end(self, batch, logs=None):
@@ -208,6 +236,15 @@ class WandbCallback(Callback):
             "batch": batch + 1,
             "batch_loss": logs.get('loss'),
             "batch_accuracy": logs.get('accuracy')
+        })
+    
+    def on_val_batch_end(self, batch, logs=None):
+        """Log validation loss and accuracy after each validation batch."""
+        logs = logs or {}
+        wandb.log({
+            "val_batch": batch + 1,
+            "val_batch_loss": logs.get('loss'),  # Validation batch loss
+            "val_batch_accuracy": logs.get('accuracy')  # Validation batch accuracy
         })
 
 # Create ModelCheckpoint callback to save only the best model based on validation metric
@@ -223,11 +260,18 @@ checkpoint_callback = ModelCheckpoint(
 # Train the model with the custom wandb callback
 model.train(
     train_images=train_image_path,
-    train_annotations=train_annotations_path,
+    train_annotations=train_annotation_path,
     checkpoints_path=checkpoint_path,
     epochs=wandb.config.epochs,
-    batch_size = wandb.config.batch_size,
+    batch_size = len(os.listdir(train_image_path))//wandb.config.batch_size,
+    validate=True,
+    val_images=val_image_path,
+    val_annotations=val_annotation_path,
+    val_batch_size=len(os.listdir(val_image_path))//wandb.config.val_batch_size,
     steps_per_epoch=wandb.config.steps_per_epoch,
+    val_steps_per_epoch=len(os.listdir(val_image_path)),
+    do_augment=True,
+    augmentation_name="aug_all",
     callbacks=[WandbCallback(), checkpoint_callback],
     class_weights=class_weights,
 )
