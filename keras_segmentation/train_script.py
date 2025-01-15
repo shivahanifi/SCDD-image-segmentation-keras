@@ -8,7 +8,7 @@ import os
 import pandas as pd
 import numpy as np
 from keras_segmentation.models.unet import vgg_unet
-from keras.callbacks import Callback, ModelCheckpoint
+from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping
 from keras_segmentation.predict import evaluate_and_plot_confusion_matrix
 import keras.backend as K
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, precision_score, recall_score
@@ -56,7 +56,7 @@ wandb.init(
         "n_classes": 29,
         "input_height": 416,
         "input_width": 608,
-        "epochs":15,
+        "epochs":30,
         "batch_size":8,
         #"steps_per_epoch":1,
         #"steps_per_epoch":len(os.listdir(train_image_path))//wandb.config.batch_size,
@@ -257,6 +257,13 @@ checkpoint_callback = ModelCheckpoint(
     verbose=1,
 )
 
+# Early stopping Callback
+early_stopping = EarlyStopping(
+    monitor='val_loss',        
+    patience=3,                
+    restore_best_weights=True 
+)
+
 # Train the model with the custom wandb callback
 model.train(
     train_images=train_image_path,
@@ -272,7 +279,7 @@ model.train(
     val_steps_per_epoch=len(os.listdir(val_image_path)),
     do_augment=True,
     augmentation_name="aug_all",
-    callbacks=[WandbCallback(), checkpoint_callback],
+    callbacks=[WandbCallback(), checkpoint_callback, early_stopping],
     class_weights=class_weights,
 )
 

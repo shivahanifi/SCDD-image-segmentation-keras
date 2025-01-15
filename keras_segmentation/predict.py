@@ -427,7 +427,7 @@ def evaluate_and_plot_confusion_matrix(model=None, inp_images=None, annotations=
     cm = confusion_matrix(all_gts, all_preds, labels=labels)
 
     # Plot confusion matrix
-    fig, ax = plt.subplots(2, 1, figsize=(12, 24))
+    fig, ax = plt.subplots(3, 1, figsize=(12, 24))
 
     # Precision matrix
     cm_precision = cm / (cm.sum(axis=0, keepdims=True) + 1e-12)
@@ -444,6 +444,14 @@ def evaluate_and_plot_confusion_matrix(model=None, inp_images=None, annotations=
     ax[1].set_title("Recall")
     ax[1].set_xlabel("Predicted label")
     ax[1].set_ylabel("True label")
+    
+    # Confusion matrix
+    sns.heatmap(cm, annot=True, fmt=".2f", cmap="viridis",
+                xticklabels=class_names, yticklabels=class_names, ax=ax[2])
+    ax[2].set_title("Confusion")
+    ax[2].set_xlabel("Predicted label")
+    ax[2].set_ylabel("True label")
+        
 
     plt.tight_layout()
 
