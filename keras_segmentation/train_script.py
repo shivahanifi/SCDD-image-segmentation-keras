@@ -275,7 +275,7 @@ model.train(
     val_images=val_image_path,
     val_annotations=val_annotation_path,
     val_batch_size=len(os.listdir(val_image_path))//wandb.config.val_batch_size,
-    steps_per_epoch=wandb.config.steps_per_epoch,
+    steps_per_epoch=len(os.listdir(val_image_path))//wandb.config.val_batch_size,
     val_steps_per_epoch=len(os.listdir(val_image_path)),
     do_augment=True,
     augmentation_name="aug_all",
