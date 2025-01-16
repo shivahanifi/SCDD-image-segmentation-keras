@@ -57,7 +57,7 @@ wandb.init(
         "input_height": 416,
         "input_width": 608,
         "epochs":30,
-        "batch_size":8,
+        "batch_size":2,
         #"steps_per_epoch":1,
         #"steps_per_epoch":len(os.listdir(train_image_path))//wandb.config.batch_size,
         #"val_steps_per_epoch":len(os.listdir(val_image_path))//wandb.config.val_batch_size,
@@ -104,6 +104,7 @@ class_weights = [
     0.25,  # "edge dark"
     0.25,  # "frame edge"
     0.27,  # "jbox"
+    0.27,  # "meas artifact"
     0.27,  # "sp mono halfcut"
     0.25,  # "scuff"
     0.25,  # "corrosion cell"
