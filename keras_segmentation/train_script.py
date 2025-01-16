@@ -23,18 +23,24 @@ for device in physical_devices:
     tf.config.experimental.set_memory_growth(device, True)
 
 # Main path
-main_path = os.path.join(custom_path, "share")
+main_path = os.getcwd()
+dataset_path = "../BenchmarkELimages/"
+
 
 # Train images and annotations path
-train_image_path = os.path.join(main_path, "SCDD_20211104/images_train_augmented")
-train_annotations_path = os.path.join(main_path, "SCDD_20211104/masks_coded_train_augmented")
+train_image_path = os.path.join(dataset_path, "dataset_20211104/images_train_augmented")
+train_annotations_path = os.path.join(dataset_path, "dataset_20211104/masks_coded_train_augmented")
+
+# Validation images and annotations path
+val_image_path = os.path.join(dataset_path, "dataset_20211104/images_val")
+val_annotations_path = os.path.join(dataset_path, "dataset_20211104/masks_coded_val")
 
 # Test images and annotations path
-test_image_path = os.path.join(main_path,"SCDD_20211104/images_test")
-test_annotation_dir = os.path.join(main_path, "SCDD_20211104/masks_coded_test")
+test_image_path = os.path.join(dataset_path, "dataset_20211104/images_test")
+test_annotation_dir = os.path.join(dataset_path, "dataset_20211104/masks_coded_test")
 
 # CSV file for classes
-csv_path = os.path.join(main_path, "SCDD_20211104/ListOfClassesAndColorCodes_20211104.csv")
+csv_path = os.path.join(dataset_path, "dataset_20211104/ListOfClassesAndColorCodes_20211104.csv")
 df = pd.read_csv(csv_path)
 colors = df[['Red', 'Green','Blue']].apply(lambda x: (x['Red'], x['Green'], x['Blue']), axis=1).tolist()
 class_names = df['Desc'].tolist()
@@ -43,8 +49,8 @@ class_dict = {class_labels[i]: class_names[i] for i in range(len(class_labels))}
 
 # tracking with wandb
 wandb.init(
-    name = "train_SCDD_20211104_ubix_w3_e15_speFull",
-    project="scdd_segmentation_keras", 
+    name = "train_SCDD_20211104_ubix",
+    project="scdd_segmentation_keras_sj", 
     entity="ubix",
     config={
         "architecture": "vgg_unet",
@@ -52,10 +58,12 @@ wandb.init(
         "n_classes": 24,
         "input_height": 416,
         "input_width": 608,
-        "epochs":15,
+        "epochs":75,
         "batch_size":2,
-        #"steps_per_epoch":1,
+        # "steps_per_epoch": None,
         "steps_per_epoch":len(os.listdir(train_image_path)),
+        "log_every_n_batch": 1,
+        "validate": True,
         "colors":colors,
         "labels_Desc":class_names,
         "labels": class_labels,
@@ -173,7 +181,7 @@ class PrecisionRecallMatrixCallback(Callback):
 # )
 
 # Define the model 
-model = vgg_unet(n_classes=wandb.config.n_classes ,  input_height=wandb.config.input_height, input_width=wandb.config.input_width)
+model = vgg_unet(n_classes=wandb.config.n_classes, input_height=wandb.config.input_height, input_width=wandb.config.input_width)
 
 # # Define the loss function with the computed class weights
 # wcce = model.WeightedCategoricalCrossentropy(weights)
@@ -186,8 +194,8 @@ model = vgg_unet(n_classes=wandb.config.n_classes ,  input_height=wandb.config.i
 total_params = model.count_params()
 
 # Calculate trainable and non-trainable parameters
-trainable_params = np.sum([K.count_params(w) for w in model.trainable_weights])
-non_trainable_params = np.sum([K.count_params(w) for w in model.non_trainable_weights])
+trainable_params = np.sum([tf.keras.backend.count_params(w) for w in model.trainable_weights])
+non_trainable_params = np.sum([tf.keras.backend.count_params(w) for w in model.non_trainable_weights])
 wandb.config.total_params = total_params
 wandb.config.trainable_params = trainable_params
 wandb.config.non_trainable_params = non_trainable_params
@@ -196,23 +204,35 @@ wandb.config.non_trainable_params = non_trainable_params
 class WandbCallback(Callback):
     def on_epoch_end(self, epoch, logs=None):
         """Log loss and accuracy after each epoch."""
-        wandb.log({
+        metrics_to_log = {
             "epoch": epoch + 1,
             "loss": logs.get('loss'),
-            "accuracy": logs.get('accuracy')
-        })
+            "accuracy": logs.get('accuracy'),
+            "mean_iou": logs.get('mean_io_u')
+        }
+        
+        if wandb.config.validate:
+            metrics_to_log["val_loss"] = logs.get('val_loss')
+            metrics_to_log["val_accuracy"] = logs.get('val_accuracy')
+            metrics_to_log["val_mean_iou"] = logs.get('val_mean_io_u')
+        
+        wandb.log(metrics_to_log)
+
 
     def on_batch_end(self, batch, logs=None):
         """Log loss and accuracy after each batch."""
-        wandb.log({
-            "batch": batch + 1,
-            "batch_loss": logs.get('loss'),
-            "batch_accuracy": logs.get('accuracy')
-        })
+        if batch % wandb.config.log_every_n_batch == 0:
+            wandb.log({
+                "batch": batch + 1,
+                "batch_loss": logs.get('loss'),
+                "batch_accuracy": logs.get('accuracy'),
+                "batch_mean_iou": logs.get('mean_io_u')
+            })
 
 # Create ModelCheckpoint callback to save only the best model based on validation metric
+checkpoint_filepath = os.path.join(checkpoint_path, "best_model.keras")
 checkpoint_callback = ModelCheckpoint(
-    checkpoint_path,
+    filepath=checkpoint_filepath,
     monitor="accuracy", 
     save_best_only=True,
     save_weights_only=False,  # Save entire model, not just weights
@@ -224,6 +244,9 @@ checkpoint_callback = ModelCheckpoint(
 model.train(
     train_images=train_image_path,
     train_annotations=train_annotations_path,
+    val_images=val_image_path,
+    val_annotations=val_annotations_path,
+    validate=wandb.config.validate,
     checkpoints_path=checkpoint_path,
     epochs=wandb.config.epochs,
     batch_size = wandb.config.batch_size,
@@ -285,7 +308,7 @@ wandb.log({"class_wise_IU_table": class_wise_IU_table})
 # Log evaluation results
 wandb.log({"frequency_weighted_IU": evaluation_result['frequency_weighted_IU'], 
             "mean_IU": evaluation_result['mean_IU'], 
-            "class_wise_IU": class_iou_dict, 
+            # "class_wise_IU": class_iou_dict, 
             "run_name": run_name,
             })
 

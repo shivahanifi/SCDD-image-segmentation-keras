@@ -179,7 +179,7 @@ def train(model,
           load_weights=None,
           steps_per_epoch=512,
           val_steps_per_epoch=512,
-          gen_use_multiprocessing=False,
+        #   gen_use_multiprocessing=False,
           ignore_zero_class=False,
           optimizer_name='adam',
           do_augment=False,
@@ -224,8 +224,9 @@ def train(model,
             loss_k = 'categorical_crossentropy'
 
         model.compile(loss=loss_k,
-                      optimizer=optimizer_name,
-                      metrics=['accuracy'])
+                        optimizer=optimizer_name,
+                        metrics=['accuracy', tf.keras.metrics.MeanIoU(num_classes=n_classes)]
+)
 
     if checkpoints_path is not None:
         config_file = checkpoints_path + "_config.json"
@@ -312,4 +313,5 @@ def train(model,
                   validation_data=val_gen,
                   validation_steps=val_steps_per_epoch,
                   epochs=epochs, callbacks=callbacks,
-                  use_multiprocessing=gen_use_multiprocessing, initial_epoch=initial_epoch,)
+                #   use_multiprocessing=gen_use_multiprocessing, 
+                  initial_epoch=initial_epoch,)
